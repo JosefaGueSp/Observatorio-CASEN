@@ -1,0 +1,1476 @@
+---
+title: "Trabajo 2"
+author: "Josefa Guerra"
+date: "4/8/2021"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("~/Desktop/Observatorio del envejecimiento/edadismo")
+library(haven)
+library(foreign)
+#library(memisc)
+library(dplyr)
+library(survey)
+library(ggplot2)
+library(tidyverse)
+library(readxl)
+library(reshape2)
+library(scales)
+library(survey)
+library(gridExtra)
+```
+
+#ENE 
+
+
+## Ocupados
+```{r}
+ene_def <- read.csv("~/Desktop/Observatorio del envejecimiento/Trabajo (Actualizacion)/ene-2021-01-def.csv", sep = ";")
+ene_efm <- read.csv("~/Desktop/Observatorio del envejecimiento/Trabajo (Actualizacion)/ene-2021-02-efm.csv", sep = ";")
+ene_fma <- read.csv("~/Desktop/Observatorio del envejecimiento/Trabajo (Actualizacion)/ene-2021-03-fma.csv", sep = ";")
+ene_mam <- read.csv("~/Desktop/Observatorio del envejecimiento/Trabajo (Actualizacion)/ene-2021-04-mam.csv", sep = ";")
+
+#summary(ene_def$fact_cal)
+
+#1 Ocupados/as
+#2 Desocupados/as
+#3 Fuera de la fuerza de trabajo
+
+#strata = ~ estrato
+ene_mam2021_surv <- survey::svydesign(id=~conglomerado, data = ene_mam, weights=~ene_mam$fact_cal)
+
+svytable(~activ, ene_mam2021_surv)
+prop.table(svytable(~activ, ene_mam2021_surv))
+
+ene_mam2021_surv <-update(ene_mam2021_surv, desocupados= if_else(cae_especifico >= 8 & cae_especifico <= 9, 1, 0), right = TRUE)
+
+ene_mam2021_surv <-update(ene_mam2021_surv, ocupados= if_else(cae_especifico >= 1 & cae_especifico <= 7, 1, 0), right = TRUE)
+
+ene_mam2021_surv <-update(ene_mam2021_surv, fdt= if_else(cae_especifico >= 1 & cae_especifico <= 9, 1, 0), right = TRUE)
+
+ene_mam2021_surv <-update(ene_mam2021_surv, `15+`= if_else(edad >= 15, 1, 0), right = TRUE)
+
+ene_mam2021_surv <-update(ene_mam2021_surv, iniciadores_disp= if_else(cae_especifico == 10, 1, 0), right = TRUE)
+
+#ocupados tiempo parcial involuntario,,,, habituales = horas trabajadas (REVISAR)
+ene_mam2021_surv <-update(ene_mam2021_surv, tpi= if_else((cae_especifico >= 1 &
+                                                           cae_especifico <= 7) & 
+                                                           (habituales <= 30) &
+                                                           (c10 == 1) &
+                                                           (c11 == 1 | c11 ==2), 
+                                                         1, 0), right = TRUE)
+
+#ocupados que buscan empleo
+
+
+ene_mam2021_surv <-update(ene_mam2021_surv, obe= if_else((cae_especifico >= 1 &
+                                                           cae_especifico <= 7) & 
+                                                           (e4 >= 1 &
+                                                           e4 <= 6 ), 
+                                                         1, 0), right = TRUE)
+
+#ocupados informales
+
+ene_mam2021_surv <-update(ene_mam2021_surv, oi= if_else(ocup_form == 2, 1, 0), right = TRUE)
+                          
+# ocupados sector informal  
+
+ene_mam2021_surv <-update(ene_mam2021_surv, osi= if_else(sector == 2, 1, 0), right = TRUE)
+
+
+
+# tasa de desocupados
+
+#(desocupados/fuerza de trabajo) *100
+#(desocupados/desocupados+ocupados) *100
+
+fdt_ene_mam2021_surv = subset(ene_mam2021_surv, fdt == 1)
+desocupados_ene_mam2021_surv = subset(ene_mam2021_surv, desocupados == 1)
+ocupados_ene_mam2021_surv = subset(ene_mam2021_surv, ocupados == 1)
+
+# tasa de ocupados
+
+pet_ene_mam2021_surv = subset(ene_mam2021_surv, `15+` == 1)
+
+#(ocupados / pet (15+)) * 100
+
+svytable(~ocupados, ene_mam2021_surv)
+
+#ocupados = 8041110 
+
+svytable(~`15+`, ene_mam2021_surv)
+
+#pet = 15888394 
+
+(8041110 /15888394)*100
+
+
+svymean(~`15+`, ene_mam2021_surv, na.rm = TRUE)
+prop.table(svytable(~`15+`, ene_mam2021_surv))
+
+tasa_ocupados <- svyby(~ocupados, ~ `15+`, ene_mam2021_surv, na.rm = T, svymean)
+
+tasa_desocupados <- svyby(~desocupados, ~ fdt, ene_mam2021_surv, na.rm = T, svymean)
+
+
+#tasa de ocupacion informal 
+
+#(ocupados informales / total de ocupados )*100
+
+tasa_ocupadosinformales <- svyby(~oi, ~ ocupados, ene_mam2021_surv, na.rm = T, svymean)
+tasa_ocupadosinformales
+
+test_svy <- subset(df_suvey, trimestre == "mam2020" & Sexo==2)
+svyby( ~oi, ~ ocupados, test_svy, svymean, na.rm = TRUE)
+
+summary(svyglm(oi~ocupados, design=ene_mam2021_surv))
+```
+
+
+Script VALE
+```{r}
+load("~/Downloads/ENE.Rdata")
+
+ENE<- ENE %>%
+  mutate(rangos_etarios= case_when(
+    edad < 10 ~ "0-10",
+    edad >=10 & edad < 20 ~ "10-20",
+    edad >=20 & edad < 30 ~ "20-30",
+    edad >=30 & edad < 40 ~ "30-40",
+    edad >=40 & edad < 50 ~ "40-50",
+    edad >=50 & edad <= 60 ~ "50-60",
+    edad >=60 & edad <= 69 ~ "60-70",
+    edad >= 70 & edad <= 79~ "70-80",
+    edad >= 80 & edad <= 89~ "80-90",
+    edad >= 90 ~ "90+"))
+
+ENEsurv <- survey::svydesign(id=~conglomerado, data = ENE, weights=~ENE$fact_cal)
+
+ENEsurv <-update(ENEsurv, desocupados= if_else(cae_especifico >= 8 & cae_especifico <= 9, 1, 0), right = TRUE)
+
+ENEsurv <-update(ENEsurv, ocupados= if_else(cae_especifico >= 1 & cae_especifico <= 7, 1, 0), right = TRUE)
+
+ENEsurv <-update(ENEsurv, fdt= if_else(cae_especifico >= 1 & cae_especifico <= 9, 1, 0), right = TRUE)
+
+ENEsurv <-update(ENEsurv, `15+`= if_else(edad >= 15, 1, 0), right = TRUE)
+
+ENEsurv <-update(ENEsurv, iniciadores_disp= if_else(cae_especifico == 10, 1, 0), right = TRUE)
+
+#ocupados tiempo parcial involuntario,,,, habituales = horas trabajadas (REVISAR)
+ENEsurv <-update(ENEsurv, tpi= if_else((cae_especifico >= 1 &
+                                                            cae_especifico <= 7) & 
+                                                           (habituales <= 30) &
+                                                           (c10 == 1) &
+                                                           (c11 == 1 | c11 ==2), 
+                                                         1, 0), right = TRUE)
+
+#ocupados que buscan empleo
+
+
+ENEsurv <-update(ENEsurv, obe= if_else((cae_especifico >= 1 &
+                                                            cae_especifico <= 7) & 
+                                                           (e4 >= 1 &
+                                                              e4 <= 6 ), 
+                                                         1, 0), right = TRUE)
+
+#ocupados informales
+
+ENEsurv <-update(ENEsurv, oi= if_else(ocup_form == 2, 1, 0), right = TRUE)
+
+# ocupados sector informal  
+
+ENEsurv <-update(ENEsurv, osi= if_else(sector == 2, 1, 0), right = TRUE)
+
+ENEsurv_60mas<-subset(ENEsurv, edad>=60)
+
+# TASAS 
+ENEsurv_60mas$variables$nivel <- as.factor(as.character(ENEsurv_60mas$variables$nivel))
+
+summary(svyglm(oi~relevel(nivel, ref = "0"), design=ENEsurv_60mas))
+
+test_svy <- subset(ENEsurv_60mas, trimestre == "mam2020" & sexo==2)
+
+test_svy$variables$ocupados <- as.factor(as.character(test_svy$variables$ocupados))
+summary(svyglm(oi~ocupados, design=ene_mam2021_surv))
+
+#Proporciones
+
+svymean( ~ ocupados, test_svy, na.rm = TRUE)
+
+#method = c("logit", "likelihood", "asin", "beta", "mean","xlogit")
+# proporciones 
+svyciprop( ~I(ocupados==1), test_svy)
+
+ENEsurv_60mas$variables$sexo <- as.factor(as.character(ENEsurv_60mas$variables$sexo))
+
+test_svy2 <- subset(ENEsurv_60mas, trimestre == "mam2020")
+
+svyciprop( ~I(ocupados==1), test_svy2)
+svymean( ~ ocupados, test_svy2, na.rm = TRUE)
+                   
+svyby (~sexo, ~ I(ocupados=="1"), test_svy2, na.rm = T, svymean)
+
+#solo con subset por trimestre
+svyby ( ~ocupados, ~ sexo, test_svy2, na.rm = T, svymean)
+svyby ( ~ocupados, ~ nivel, test_svy2, na.rm = T, svymean)
+svyby ( ~ocupados, ~ rangos_etarios, test_svy2, na.rm = T, svymean)
+
+
+prop.table(svytable(~ocupados, test_svy))
+```
+
+
+```{r}
+load("/Users/Pepi/Downloads/ENE_tt.Rdata")
+
+ENE_tt$t <- factor(ENE_tt$t, levels = ENE_tt$t)
+  
+ENE_tt %>%
+  select(ID, t_ocup, t) %>%
+  ggplot(aes(x=t, y=t_ocup, group=1)) +
+  geom_point(size = 0.1)+
+  geom_line() +
+ labs(y="Tasa Ocupados", x="", title="") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8))
+
+
+ENE_tt %>%
+  select(ID, t_desocup, t) %>%
+  ggplot(aes(x=t, y=t_desocup, group=1)) +
+  geom_point(size = 0.1)+
+  geom_line() +
+ labs(y="Tasa Desocupados", x="", title="") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8))
+
+ENE_tt %>%
+  select(ID, t_oi, t) %>%
+  ggplot(aes(x=t, y=t_oi, group=1)) +
+  geom_point(size = 0.1)+
+  geom_line() +
+ labs(y="Tasa Ocupacion Informal", x="", title="") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8))
+```
+
+### sexo, edad, educ
+
+```{r}
+ocup_sexo$sexo <- factor(ocup_sexo$sexo, labels = c("Hombres", "Mujeres"))
+ocup_sexo$t <- factor(ocup_sexo$t, levels = c("mam20","amj20","mjj20", "jja20" , "jas20", "aso20","son20","ond20", "nde20", "def21", "efm21", "fma21","mam21"))
+trimestres <- c("mam20","jas20", "def21", "mam21")
+
+ocup_sexo %>%
+  filter(ocupados == 1 ) %>%
+ggplot(aes(x=t, y=value, group=sexo, col=sexo)) +
+  #geom_point() +
+  geom_line()+
+  labs(y="Porcentaje(%)", x="Trimestre", col="Género") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) -> g_ocupacionsexo
+
+ocup_sexo2 <- ocup_sexo%>%
+  filter(ocupados == 1 & t %in% trimestres)
+  
+ocup_sexo2$t <- factor(ocup_sexo2$t, levels = c("mam20", "jas20",  "def21","mam21"), labels = c("Mar-May 2020","Jul-Sep 2020", "Dic-Feb 2021", "Mar-May 2021"))
+
+ocup_sexo2$t <- factor(ocup_sexo2$t, levels =unique(ocup_sexo2$t))
+
+ocup_sexo2 %>%
+ggplot(aes(x=t, y=value, group=sexo, col=sexo)) +
+  #geom_point() +
+  geom_line()+
+  labs(y="Porcentaje(%)", x="Trimestre", col="Género") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8)) -> g_ocupacionsexo2
+
+ocup_edadNUEVO$t <- factor(ocup_edadNUEVO$t, levels = c("mam20", "jas20",  "def21","mam21"), labels = c("Mar-May 2020","Jul-Sep 2020", "Dic-Feb 2021", "Mar-May 2021"))
+
+ocup_edadNUEVO$t <- factor(ocup_edadNUEVO$t, levels =unique(ocup_edadNUEVO$t))
+
+ocup_edadNUEVO %>%
+  filter(ocupados == 1) %>%
+ggplot(aes(x=t, y=value, group=edad, col=edad)) +
+  #geom_point() +
+  geom_line()+
+  labs(y="Porcentaje(%)", x="Trimestre", col="Rango Etario") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8)) -> g_ocupacionedad
+
+ocup_edadNUEVO%>%
+  group_by(edad) %>% 
+  summarise(porcentaje=mean(value)) 
+tabla_oiedad <- as.data.frame(tabla_oiedad)
+tabla_oiedad$porcentaje <- round(tabla_oiedad$porcentaje,1)
+
+#library(readxl)
+#ocupacion_educacion_tabla <- read_excel("Desktop/Observatorio del envejecimiento/Trabajo (Actualizacion)/ocupacion educacion tabla.xlsx")
+
+ocup_educaNUEVO1 <-ocupacion_educacion_tabla
+
+ocup_educaNUEVO1$`Educación` <- as.factor(ocup_educaNUEVO1$`Educación`)
+
+ocup_educaNUEVO1$t <- factor(ocup_educaNUEVO1$t, levels = c("mam20", "jas20",  "def21","mam21"), labels = c("Mar-May 2020","Jul-Sep 2020", "Dic-Feb 2021", "Mar-May 2021"))
+
+ocup_educaNUEVO1$t <- factor(ocup_educaNUEVO1$t, levels =unique(ocup_educaNUEVO1$t))
+
+ocup_educaNUEVO1 %>%
+ggplot(aes(x=t, y=value, group=`Educación`, col=`Educación`)) +
+  #geom_point() +
+  geom_line()+
+  labs(y="Porcentaje(%)", x="Trimestre", col="Educación") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8)) -> g_ocupacioneduca
+
+grid.arrange( g_ocupacionsexo2, g_ocupacionedad, g_ocupacioneduca, nrow=2)
+```
+### -60
+
+```{r}
+load("menos60ENE.Rdata") #se llama caca 
+
+caca$Trimestre <- factor(caca$Trimestre, levels =unique(caca$Trimestre))
+
+caca %>%
+  filter(prop != "prop_desocup" & 
+           prop != "prop_oi") %>%
+ggplot(aes(x=Trimestre, y=valor, group=prop, col=prop)) +
+  #geom_point() +
+  geom_line()+
+  labs(y="Porcentaje(%)", x="Trimestre", col="") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8))
+```
+```{r}
+pmocup <- caca1 %>%
+  filter(prop == "prop_ocup") %>%
+  droplevels()
+
+pjocup <- caca%>%
+  filter(prop == "prop_ocup") %>%
+  droplevels()
+
+round(pjocup$valor-pmocup$valor, 1)
+
+pjocup$valor[pjocup$Trimestre == "Nov-Dic 2019"]
+pjocup$valor[pjocup$Trimestre == "May-Jul 2020"]
+pjocup$valor[pjocup$Trimestre == "Jul-Sep 2020"]
+pjocup$valor[pjocup$Trimestre == "Mar-May 2021"]
+
+
+pmocup$valor[pmocup$Trimestre == "Nov-Dic 2019"]
+pmocup$valor[pmocup$Trimestre == "May-Jul 2020"]
+pmocup$valor[pmocup$Trimestre == "Jul-Sep 2020"]
+pmocup$valor[pmocup$Trimestre == "Mar-May 2021"]
+
+#comportamiento -60
+pjocup$valor[pjocup$Trimestre == "Nov-Dic 2019"]-pjocup$valor[pjocup$Trimestre == "May-Jul 2020"]
+
+pjocup$valor[pjocup$Trimestre == "May-Jul 2020"] -
+pjocup$valor[pjocup$Trimestre == "Jul-Sep 2020"]
+
+pjocup$valor[pjocup$Trimestre == "Jul-Sep 2020"] -
+pjocup$valor[pjocup$Trimestre == "Mar-May 2021"]
+
+#comportamiento 60+
+pmocup$valor[pmocup$Trimestre == "Nov-Dic 2019"]-pmocup$valor[pmocup$Trimestre == "May-Jul 2020"]
+
+pmocup$valor[pmocup$Trimestre == "May-Jul 2020"] -
+pmocup$valor[pmocup$Trimestre == "Jul-Sep 2020"]
+
+pmocup$valor[pmocup$Trimestre == "Jul-Sep 2020"] -
+pmocup$valor[pmocup$Trimestre == "Mar-May 2021"]
+
+#comparacion -60 60+
+
+mean(pjocup$valor[pjocup$Trimestre == "Nov-Dic 2019"]-pmocup$valor[pmocup$Trimestre == "Nov-Dic 2019"],
+
+pjocup$valor[pjocup$Trimestre == "May-Jul 2020"] -
+pmocup$valor[pmocup$Trimestre == "May-Jul 2020"],
+
+pjocup$valor[pjocup$Trimestre == "Jul-Sep 2020"] -
+pmocup$valor[pmocup$Trimestre == "Jul-Sep 2020"],
+
+pjocup$valor[pjocup$Trimestre == "Mar-May 2021"] -
+pmocup$valor[pmocup$Trimestre == "Mar-May 2021"])
+
+#fdt 
+
+pmfdt <- caca1 %>%
+  filter(prop == "prop_fdt") %>%
+  droplevels()
+
+pjfdt <- caca%>%
+  filter(prop == "prop_fdt") %>%
+  droplevels()
+
+#diferencia anual entre -60 y 60+
+mean(pjfdt$valor[pjfdt$Trimestre == "Nov-Dic 2019"]-pmfdt$valor[pmfdt$Trimestre == "Nov-Dic 2019"],
+
+pjfdt$valor[pjfdt$Trimestre == "May-Jul 2020"] -
+pmfdt$valor[pmfdt$Trimestre == "May-Jul 2020"],
+
+pjfdt$valor[pjfdt$Trimestre == "Jul-Sep 2020"] -
+pmfdt$valor[pmfdt$Trimestre == "Jul-Sep 2020"],
+
+pjfdt$valor[pjfdt$Trimestre == "Mar-May 2021"] -
+pmfdt$valor[pmfdt$Trimestre == "Mar-May 2021"])
+
+#comparacion -60 60+
+
+#comportamiento -60
+pjfdt$valor[pjfdt$Trimestre == "Nov-Dic 2019"]-pjfdt$valor[pjfdt$Trimestre == "May-Jul 2020"]
+
+pjfdt$valor[pjfdt$Trimestre == "May-Jul 2020"] -
+pjfdt$valor[pjfdt$Trimestre == "Jul-Sep 2020"]
+
+pjfdt$valor[pjfdt$Trimestre == "Jul-Sep 2020"] -
+pjfdt$valor[pjfdt$Trimestre == "Mar-May 2021"]
+
+#comportamiento 60+
+pmfdt$valor[pmfdt$Trimestre == "Nov-Dic 2019"]-pmfdt$valor[pmfdt$Trimestre == "May-Jul 2020"]
+
+pmfdt$valor[pmfdt$Trimestre == "May-Jul 2020"] -
+pmfdt$valor[pmfdt$Trimestre == "Jul-Sep 2020"]
+
+pmfdt$valor[pmfdt$Trimestre == "Jul-Sep 2020"] -
+pmfdt$valor[pmfdt$Trimestre == "Mar-May 2021"]
+```
+
+
+## Informales
+
+```{r}
+inf_sexo%>%
+  filter(oi == 1) %>%
+  group_by(sexo) %>% 
+  summarise(porcentaje=mean(value)) -> tabla_oisexo
+tabla_oisexo <- as.data.frame(tabla_oisexo)
+tabla_oisexo$porcentaje <- round(tabla_oisexo$porcentaje,1)
+
+tabla_oisexo$sexo <- factor(tabla_oisexo$sexo, labels = c("Hombres", "Mujeres"))
+
+inf_edadNUEVO%>%
+  group_by(edad) %>% 
+  summarise(porcentaje=mean(value)) -> tabla_oiedad
+tabla_oiedad <- as.data.frame(tabla_oiedad)
+tabla_oiedad$porcentaje <- round(tabla_oiedad$porcentaje,1)
+
+informalidad_educacion_tabla%>%
+  group_by(`Educación`) %>% 
+  summarise(porcentaje=mean(porcentaje)) -> tabla_oieduca
+tabla_oieduca <- as.data.frame(tabla_oieduca) 
+tabla_oieduca$porcentaje <- round(tabla_oieduca$porcentaje,1)
+```
+```{r}
+
+tabla_oieduca %>%
+  arrange(-porcentaje) %>%    # First sort by val. This sort the dataframe but NOT the factor levels
+  mutate(name=factor(`Educación`, levels=`Educación`))%>% 
+  ggplot(aes(y=porcentaje, x=name, fill=`Educación`)) + 
+    geom_bar(position="dodge", stat="identity") +
+  labs(y="Porcentaje (%)", x="", title="") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98")
+  ) +
+  geom_text(#data=subset(dependencia, porcentaje >= 3), 
+    aes(label = porcentaje, y= porcentaje + 0.05), color="white", position = position_dodge(0.9), vjust=2, size=3) +
+  theme(legend.position="none") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) -> g_educainfanual
+
+tabla_oiedad %>%
+  ggplot(aes(y=porcentaje, x=edad, fill=edad)) + 
+    geom_bar(position="dodge", stat="identity") +
+  labs(y="Porcentaje (%)", x="", title="") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98")
+  ) +
+  geom_text(#data=subset(dependencia, porcentaje >= 3), 
+    aes(label = porcentaje, y= porcentaje + 0.05), color="white", position = position_dodge(0.9), vjust=2, size=3) +
+  theme(legend.position="none") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) -> g_edadinfanual
+
+tabla_oisexo %>%
+  ggplot(aes(y=porcentaje, x=sexo, fill=sexo)) + 
+    geom_bar(position= position_dodge(width=0.02), stat="identity", width=0.5) +
+  labs(y="Porcentaje (%)", x="", title="") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98")
+  ) +
+  geom_text(#data=subset(dependencia, porcentaje >= 3), 
+    aes(label = porcentaje, y= porcentaje + 0.05), color="white", position = position_dodge(0.9), vjust=2, size=3) +
+  theme(legend.position="none") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) -> g_sexoinfanual
+```
+
+
+## Categorias de ocupacion, lugares de trabajo
+```{r}
+mam2020 <- ene_2020_04_mam
+
+
+mam2020<- mam2020 %>%
+  mutate(rangos_etarios= case_when(
+    edad < 10 ~ "0-10",
+    edad >=10 & edad < 20 ~ "10-20",
+    edad >=20 & edad < 30 ~ "20-30",
+    edad >=30 & edad < 40 ~ "30-40",
+    edad >=40 & edad < 50 ~ "40-50",
+    edad >=50 & edad <= 60 ~ "50-60",
+    edad >=60 & edad <= 69 ~ "60-70",
+    edad >= 70 & edad <= 79~ "70-80",
+    edad >= 80 & edad <= 89~ "80-90",
+    edad >= 90 ~ "90+"))
+
+#b1, b16, categoria_ocupacion
+mam2020_surv <- survey::svydesign(id=~conglomerado, data = mam2020, weights=~mam2020$fact_cal)
+
+mam60_svy2020<-subset(mam2020_surv, edad>=60)
+mammenos60_svy2020<-subset(mam2020_surv, edad<=60)
+
+mam60_svy2020$variables$b1 <- as.factor(as.character(mam60_svy2020$variables$b1))
+mam60_svy2020$variables$sexo <- as.factor(as.character(mam60_svy2020$variables$sexo))
+mam60_svy2020$variables$nivel <- as.factor(as.character(mam60_svy2020$variables$nivel))
+mam60_svy2020$variables$rangos_etarios <- as.factor(as.character(mam60_svy2020$variables$rangos_etarios))
+mam60_svy2020$variables$proveedor <- as.factor(as.character(mam60_svy2020$variables$proveedor))
+
+svyby ( ~b1, ~ sexo, mam60_svy2020, na.rm = T, svymean)
+svyby ( ~b1, ~ nivel, mam60_svy2020, na.rm = T, svymean)
+svyby ( ~b1, ~ rangos_etarios, mam60_svy2020, na.rm = T, svymean)
+
+mam60_svy2020$variables$b16 <- as.factor(as.character(mam60_svy2020$variables$b16))
+svyby ( ~b16, ~ sexo, mam60_svy2020, na.rm = T, svymean)
+svyby ( ~b16, ~ nivel, mam60_svy2020, na.rm = T, svymean)
+svyby ( ~b16, ~ rangos_etarios, mam60_svy2020, na.rm = T, svymean)
+
+mam60_svy2020$variables$categoria_ocupacion <- as.factor(as.character(mam60_svy2020$variables$categoria_ocupacion))
+svyby ( ~categoria_ocupacion, ~ sexo, mam60_svy2020, na.rm = T, svymean)
+svyby ( ~categoria_ocupacion, ~ nivel, mam60_svy2020, na.rm = T, svymean)
+svyby ( ~categoria_ocupacion, ~ rangos_etarios, mam60_svy2020, na.rm = T, svymean)
+
+
+as.data.frame(svymean(~b1, mam60_svy2020, na.rm = T)) %>% arrange(-mean) #Grupo de ocupación según la Clasificación 1 Internacional Uniforme de Ocupaciones ... 5=Trabajadores de los servicios y vendedores de comercios y mercados, 9=Ocupaciones elementales, 7=Artesanos y operarios de oficios, 8=Operadores de instalaciones, máquinas y ensambladores,2=Profesionales, científicos e intelectuales
+b162020 <- as.data.frame(svymean(~b16, mam60_svy2020, na.rm = T)) %>% arrange(-mean) #donde realizo principalmente sus tareas ... 1=en instalaciones u oficinas 5=en su propio hogar 88=no sabe
+b162020_por <-as.data.frame(prop.table(svytable(~b16, mam60_svy2020))) #%>% arrange(-Freq)
+b162020 <-as.data.frame(svytable(~b16, mam60_svy2020)) #%>% arrange(-Freq)
+b162020$Año <- c(2020)
+#b162020$Level <- rownames(b162020)
+
+as.data.frame(svymean(~categoria_ocupacion, mam60_svy2020, na.rm = T))%>% arrange(-mean) #0=no corresponde, 3=asalariado sector privado, 2=cuenta propia, 4=asalariado sector publico, 1=empleador (1%)
+cat_ocup2020_por <- as.data.frame(prop.table(svytable(~categoria_ocupacion, mam60_svy2020))) #%>% arrange(-Freq)
+cat_ocup2020 <- as.data.frame(svytable(~categoria_ocupacion, mam60_svy2020)) %>% arrange(-Freq)
+cat_ocup2020$Año <- c(2020)
+
+svymean(~proveedor, mam60_svy2020, na.rm = T)  #Señala al proveedor económico principal del hogar.. 0= no proveedor, 1=proveedor principal
+
+```
+
+```{r}
+ene_mam <- read.csv("~/Desktop/Observatorio del envejecimiento/Trabajo (Actualizacion)/ene-2021-04-mam.csv", sep = ";")
+
+ene_mam<- ene_mam %>%
+  mutate(rangos_etarios= case_when(
+    edad < 10 ~ "0-10",
+    edad >=10 & edad < 20 ~ "10-20",
+    edad >=20 & edad < 30 ~ "20-30",
+    edad >=30 & edad < 40 ~ "30-40",
+    edad >=40 & edad < 50 ~ "40-50",
+    edad >=50 & edad <= 60 ~ "50-60",
+    edad >=60 & edad <= 69 ~ "60-70",
+    edad >= 70 & edad <= 79~ "70-80",
+    edad >= 80 & edad <= 89~ "80-90",
+    edad >= 90 ~ "90+"))
+
+#b1, b16, categoria_ocupacion
+ene_mam2021_surv <- survey::svydesign(id=~conglomerado, data = ene_mam, weights=~ene_mam$fact_cal)
+
+mam60_svy<-subset(ene_mam2021_surv, edad>=60)
+
+mam60_svy$variables$b1 <- as.factor(as.character(mam60_svy$variables$b1))
+mam60_svy$variables$sexo <- as.factor(as.character(mam60_svy$variables$sexo))
+mam60_svy$variables$nivel <- as.factor(as.character(mam60_svy$variables$nivel))
+mam60_svy$variables$rangos_etarios <- as.factor(as.character(mam60_svy$variables$rangos_etarios))
+mam60_svy$variables$proveedor <- as.factor(as.character(mam60_svy$variables$proveedor))
+
+svyby ( ~b1, ~ sexo, mam60_svy, na.rm = T, svymean)
+svyby ( ~b1, ~ nivel, mam60_svy, na.rm = T, svymean)
+svyby ( ~b1, ~ rangos_etarios, mam60_svy, na.rm = T, svymean)
+
+mam60_svy$variables$b16 <- as.factor(as.character(mam60_svy$variables$b16))
+svyby ( ~b16, ~ sexo, mam60_svy, na.rm = T, svymean)
+svyby ( ~b16, ~ nivel, mam60_svy, na.rm = T, svymean)
+svyby ( ~b16, ~ rangos_etarios, mam60_svy, na.rm = T, svymean)
+
+mam60_svy$variables$categoria_ocupacion <- as.factor(as.character(mam60_svy$variables$categoria_ocupacion))
+svyby ( ~categoria_ocupacion, ~ sexo, mam60_svy, na.rm = T, svymean)
+svyby ( ~categoria_ocupacion, ~ nivel, mam60_svy, na.rm = T, svymean)
+svyby ( ~categoria_ocupacion, ~ rangos_etarios, mam60_svy, na.rm = T, svymean)
+
+
+as.data.frame(svymean(~b1, mam60_svy, na.rm = T)) %>% arrange(-mean) #Grupo de ocupación según la Clasificación 1 Internacional Uniforme de Ocupaciones ... 5=Trabajadores de los servicios y vendedores de comercios y mercados, 9=Ocupaciones elementales, 7=Artesanos y operarios de oficios, 8=Operadores de instalaciones, máquinas y ensambladores,2=Profesionales, científicos e intelectuales
+b162021 <- as.data.frame(svymean(~b16, mam60_svy, na.rm = T)) %>% arrange(-mean) #donde realizo principalmente sus tareas ... 1=en instalaciones u oficinas 5=en su propio hogar 88=no sabe
+b162021_por <- as.data.frame(prop.table(svytable(~b16, mam60_svy))) #%>% arrange(-Freq)
+b162021 <- as.data.frame(svytable(~b16, mam60_svy)) #%>% arrange(-Freq)
+b162021$Año <- c(2021)
+#b162021$Level <- rownames(b162021)
+
+as.data.frame(svymean(~categoria_ocupacion, mam60_svy, na.rm = T))%>% arrange(-mean) #0=no corresponde, 3=asalariado sector privado, 2=cuenta propia, 4=asalariado sector publico, 1=empleador (1%)
+cat_ocup2021_por<- as.data.frame(prop.table(svytable(~categoria_ocupacion, mam60_svy))) #%>% arrange(-Freq)
+cat_ocup2021 <- as.data.frame(svytable(~categoria_ocupacion, mam60_svy)) %>% arrange(-Freq)
+cat_ocup2021$Año <- c(2021)
+
+svymean(~proveedor, mam60_svy, na.rm = T)  #Señala al proveedor económico principal del hogar.. 0= no proveedor, 1=proveedor principal
+
+```
+```{r}
+#cifras para pob general 
+menos60b16 <- as.data.frame(prop.table(svytable(~b16, mam2020_surv))) 
+
+menos60b1621 <- as.data.frame(prop.table(svytable(~b16, ene_mam2021_surv)))
+```
+
+
+```{r}
+b162020<- b162020 %>%
+  mutate(label= case_when(
+    b16 == 1 ~ "En instalaciones u\n oficina del cliente\n o empleador",
+    b16 == 2 ~ "En la casa del\n empleador o cliente",
+    b16 == 3 ~ "En instalaciones u\n oficinas propias o\n arrendadas",
+    b16 == 4  ~ "En la oficina, local,\n taller o fábrica\n, anexo a su hogar\n(en el mismo predio)",
+    b16 == 5 ~ "En su propio hogar",
+    b16 == 6 ~ "En la calle o \nvía pública",
+    b16 == 7 ~ "En obras de construcción,\n mineras o similares",
+    b16 == 8~ "En un predio agrícola\n o espacio marítim\no o aéreo",
+    b16 == 9~ "En otros lugares",
+    b16 == 88 ~ "No sabe",
+    b16 == 99 ~ "No responde"))
+
+b162021<- b162021 %>%
+  mutate(label= case_when(
+    b16 == 1 ~ "En instalaciones u\n oficina del cliente\n o empleador",
+    b16 == 2 ~ "En la casa del\n empleador o cliente",
+    b16 == 3 ~ "En instalaciones u\n oficinas propias o\n arrendadas",
+    b16 == 4  ~ "En la oficina, local,\n taller o fábrica\n, anexo a su hogar\n(en el mismo predio)",
+    b16 == 5 ~ "En su propio hogar",
+    b16 == 6 ~ "En la calle o \nvía pública",
+    b16 == 7 ~ "En obras de construcción,\n mineras o similares",
+    b16 == 8~ "En un predio agrícola\n o espacio marítim\no o aéreo",
+    b16 == 9~ "En otros lugares",
+    b16 == 88 ~ "No sabe",
+    b16 == 99 ~ "No responde"))
+
+b162020_por<- b162020_por %>%
+  mutate(label= case_when(
+    b16 == 1 ~ "En instalaciones u\n oficina del cliente\n o empleador",
+    b16 == 2 ~ "En la casa del\n empleador o cliente",
+    b16 == 3 ~ "En instalaciones u\n oficinas propias o\n arrendadas",
+    b16 == 4  ~ "En la oficina, local,\n taller o fábrica\n, anexo a su hogar\n(en el mismo predio)",
+    b16 == 5 ~ "En su propio hogar",
+    b16 == 6 ~ "En la calle o \nvía pública",
+    b16 == 7 ~ "En obras de construcción,\n mineras o similares",
+    b16 == 8~ "En un predio agrícola\n o espacio marítim\no o aéreo",
+    b16 == 9~ "En otros lugares",
+    b16 == 88 ~ "No sabe",
+    b16 == 99 ~ "No responde"))
+
+b162021_por<- b162021_por %>%
+  mutate(label= case_when(
+    b16 == 1 ~ "En instalaciones u\n oficina del cliente\n o empleador",
+    b16 == 2 ~ "En la casa del\n empleador o cliente",
+    b16 == 3 ~ "En instalaciones u\n oficinas propias o\n arrendadas",
+    b16 == 4  ~ "En la oficina, local,\n taller o fábrica\n, anexo a su hogar\n(en el mismo predio)",
+    b16 == 5 ~ "En su propio hogar",
+    b16 == 6 ~ "En la calle o \nvía pública",
+    b16 == 7 ~ "En obras de construcción,\n mineras o similares",
+    b16 == 8~ "En un predio agrícola\n o espacio marítim\no o aéreo",
+    b16 == 9~ "En otros lugares",
+    b16 == 88 ~ "No sabe",
+    b16 == 99 ~ "No responde"))
+
+b16df <- bind_cols(b162020, b162021)
+b16df_gr <- bind_rows(b162020, b162021)
+
+b16df <- b16df %>%
+  mutate(`Variación` = b16df$`Freq...5`- b16df$`Freq...2`)
+b16df <- b16df %>%
+  mutate(`Variación anual` = round((b16df$`Freq...5`*100/b16df$`Freq...2`)-100, 1)) %>% arrange(-`Variación anual`)
+b16df$`Variación anual 1` <- paste0(b16df$`Variación anual`,"%", sep="")
+
+b16df_porcent <- bind_cols(b162020_por, b162021_por)
+b16df_porcent <- b16df_porcent %>%
+  mutate(`Variación pp` = b16df_porcent$`Freq...5`- b16df_porcent$`Freq...2`)
+
+b16df <- b16df[c(1,3,2, 5, 7:9)]
+b16df_porcent <- b16df_porcent[c(1,3,2, 5, 7)]
+
+b16final <- full_join(b16df_porcent,b16df,  by="b16...1")
+b16final$`label...3.y` <- NULL
+
+cat_ocup2020<- cat_ocup2020 %>%
+  mutate(label= case_when(
+   categoria_ocupacion == 1 ~ "Empleador",
+    categoria_ocupacion == 2 ~ "Cuenta propia",
+    categoria_ocupacion == 3 ~ "Asalariado sector privado",
+    categoria_ocupacion == 4  ~ "Asalariado sector público",
+    categoria_ocupacion == 5 ~ "Personal de servicio\n doméstico puertas\n afuera",
+    categoria_ocupacion == 6 ~ "Personal de servicio\n doméstico puertas\n adentro",
+    categoria_ocupacion == 7~ "Familiar o personal\n no remunerado",
+    categoria_ocupacion == 0 ~ "No corresponde"))
+
+cat_ocup2021<- cat_ocup2021 %>%
+  mutate(label= case_when(
+   categoria_ocupacion == 1 ~ "Empleador",
+    categoria_ocupacion == 2 ~ "Cuenta propia",
+    categoria_ocupacion == 3 ~ "Asalariado sector privado",
+    categoria_ocupacion == 4  ~ "Asalariado sector público",
+    categoria_ocupacion == 5 ~ "Personal de servicio\n doméstico puertas\n afuera",
+    categoria_ocupacion == 6 ~ "Personal de servicio\n doméstico puertas\n adentro",
+    categoria_ocupacion == 7~ "Familiar o personal\n no remunerado",
+    categoria_ocupacion == 0 ~ "No corresponde"))
+
+cat_ocupdf <- bind_cols(cat_ocup2020, cat_ocup2021)
+cat_ocupdf <- cat_ocupdf %>%
+  mutate(`Variación` = cat_ocupdf$`Freq...6`- cat_ocupdf$`Freq...2`)
+cat_ocupdf <- cat_ocupdf %>%
+  mutate(`Variación anual` = round((cat_ocupdf$`Freq...6`*100/cat_ocupdf$`Freq...2`)-100, 1)) %>% arrange(-`Variación anual`)
+cat_ocupdf$`Variación anual 1` <- paste0(cat_ocupdf$`Variación anual`,"%", sep="")
+cat_ocupdf_gr <- bind_rows(cat_ocup2020, cat_ocup2021)
+
+cat_ocupdf_porcent <- bind_cols(cat_ocup2020_por, cat_ocup2021_por)
+cat_ocupdf_porcent$`Freq...4` <-(cat_ocupdf_porcent$`Freq...4`*100)
+cat_ocupdf_porcent$`Freq...2` <-(cat_ocupdf_porcent$`Freq...2`*100)
+cat_ocupdf_porcent <- cat_ocupdf_porcent %>%
+  mutate(`Variación` = cat_ocupdf_porcent$`Freq...4`- cat_ocupdf_porcent$`Freq...2`)
+
+
+cat_ocupdf <- cat_ocupdf[c(1,4,3,2, 7,6,9:11)]
+cat_ocupdf_porcent <- cat_ocupdf_porcent[c(1,2,4,5)]
+cat_ocupdf_final <- full_join(cat_ocupdf, cat_ocupdf_porcent,  by="categoria_ocupacion...1")
+cat_ocupdf_final$`categoria_ocupacion...3` <- NULL
+```
+```{r}
+cat_ocupdf$`label...4` <- factor(cat_ocupdf$`label...4`, levels=cat_ocupdf$`label...4`)
+
+cat_ocupdf %>%
+  filter(`label...4` != "No corresponde") %>%
+ggplot(aes(y=`Variación anual`, x=`label...4`, fill=`label...4`)) + 
+    geom_bar(stat="identity") +
+  labs(y="Variación anual", x="Ocupación") +
+  coord_flip() +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8))  +
+  theme(legend.position="none") +
+  geom_text(data=subset(cat_ocupdf, `label...4` != "No corresponde"), aes(label = `Variación anual 1`, vjust = 1), size = 3,
+    inherit.aes = TRUE, color="black") -> g_variacion_ocupacion
+```
+
+# ENUT
+
+```{r}
+enut <- read.csv("~/Desktop/Observatorio del envejecimiento/Trabajo (Actualizacion)/BASE_USUARIO ENUT 2015.csv", sep = ";") 
+summary(as.numeric(enut$p12_1_2))
+glimpse(enut$p12_1_2)
+```
+
+
+# CASEN 
+
+## pobreza
+```{r}
+casen2017 <- haven::read_dta("Casen 2017.dta")
+
+casen2017<- casen2017 %>%
+  mutate(rangos_etarios= case_when(
+    edad < 10 ~ "0-10",
+    edad >=10 & edad < 20 ~ "10-20",
+    edad >=20 & edad < 30 ~ "20-30",
+    edad >=30 & edad < 40 ~ "30-40",
+    edad >=40 & edad < 50 ~ "40-50",
+    edad >=50 & edad <= 60 ~ "50-60",
+    edad >=60 & edad <= 69 ~ "60-70",
+    edad >= 70 & edad <= 79~ "70-80",
+    edad >= 80 & edad <= 89~ "80-90",
+    edad >= 90 ~ "90+"))
+
+casen2017<-casen2017 %>%
+  mutate(pobreza_ingresos = if_else(pobreza == 1 | pobreza == 2, 1, 0))
+
+des_17 <- survey::svydesign(id=~1,
+                            data = casen2017, 
+                           weights=~casen2017$expr)
+edad_60 <- subset(des_17, edad >=60)
+prop.table(svytable(~pobreza, edad_60))
+
+#no pobres= 0.95462173 
+
+#         1          2          3 
+#0.01026550 0.03511277 0.95462173 
+
+svytable(~pobreza_ingresos, edad_60)
+
+pobres_ing_2017 <- as.data.frame(round(prop.table(svytable(~pobreza_ingresos, edad_60)),2))
+pobres_ing_2017 <- as.data.frame(svytable(~pobreza_ingresos, edad_60))
+pobres_ing_2017$Año <- c(2017)
+pobres_ing_2017$Pob <- c("60+")
+
+#poblacion general
+
+genpobres_ing_2017 <- as.data.frame(round(prop.table(svytable(~pobreza_ingresos, des_17)),2))
+genpobres_ing_2017 <- as.data.frame(svytable(~pobreza_ingresos, des_17))
+genpobres_ing_2017$Año <- c(2017)
+genpobres_ing_2017$Pob <- c("General")
+```
+```{r}
+casencovid <- haven::read_dta("Casen en Pandemia 2020_STATA.dta")
+
+casencovid<- casencovid %>%
+  mutate(rangos_etarios= case_when(
+    edad < 10 ~ "0-10",
+    edad >=10 & edad < 20 ~ "10-20",
+    edad >=20 & edad < 30 ~ "20-30",
+    edad >=30 & edad < 40 ~ "30-40",
+    edad >=40 & edad < 50 ~ "40-50",
+    edad >=50 & edad <= 60 ~ "50-60",
+    edad >=60 & edad <= 69 ~ "60-70",
+    edad >= 70 & edad <= 79~ "70-80",
+    edad >= 80 & edad <= 89~ "80-90",
+    edad >= 90 ~ "90+"))
+
+casencovid<-casencovid %>%
+  mutate(pobreza_ingresos = if_else(pobreza == 1 | pobreza == 2, 1, 0))
+
+casen_svy <- survey::svydesign(id=~varunit,
+                            data = casencovid, 
+                            weights=~expr)
+
+prop.table(svytable(~pobreza, casen_svy))
+
+prop.table(svytable(~pobreza_sinte, casen_svy))
+
+casencovid60 <- subset(casencovid, edad >=60)
+  
+casen60_svy <- survey::svydesign(id=~varunit,
+                            data = casencovid60, 
+                            weights=~expr)
+
+
+#poblacion
+
+prop.table(svytable(~rangos_etarios, casen_svy))
+
+# 0.1826247 de personas sobre 60
+
+#pobreza
+summary(Casen_en_Pandemia_2020_STATA$lp)
+
+prop.table(svytable(~pobreza, casen_svy))
+
+Casen_en_Pandemia_2020_STATA$pobreza
+
+prop.table(svytable(~pobreza, casen60_svy))
+
+#         1          2          3 
+#0.01873458 0.03712547 0.94413996 
+prop.table(svytable(~pobreza_ingresos, casen60_svy))
+
+pobres_ing_2021 <- as.data.frame(round(prop.table(svytable(~pobreza_ingresos, casen60_svy)),2))
+#pobres_ing_2021 <- as.data.frame(svytable(~pobreza_ingresos, casen60_svy))
+pobres_ing_2021$Año <- c(2021)
+pobres_ing_2021$Pob <- c("60+")
+
+prop.table(svytable(~pobreza_sinte, casen60_svy))
+
+##poblacion general
+genpobres_ing_2021 <- as.data.frame(round(prop.table(svytable(~pobreza_ingresos, casen_svy)),2))
+#genpobres_ing_2021 <- as.data.frame(svytable(~pobreza_ingresos, casen_svy))
+genpobres_ing_2021$Año <- c(2021)
+genpobres_ing_2021$Pob <- c("General")
+
+##############pobreza casen 2017-2021
+
+genpobreza_casen <- bind_rows(pobres_ing_2017, genpobres_ing_2017, pobres_ing_2021, genpobres_ing_2021)
+genpobreza_casen$Freq <- genpobreza_casen$Freq*100
+pobreza60_casen <- bind_rows(pobres_ing_2017, pobres_ing_2021)
+
+#genpobreza_casen_numero <- genpobreza_casen
+```
+```{r}
+genpobreza_casen %>%
+  filter(pobreza_ingresos == 1) %>%
+ggplot(aes(fill=Pob, y=Freq, x=as.factor(as.character(Año)))) + 
+    geom_bar(position="dodge", stat="identity") +
+  labs(y="Porcentaje(%)", x="", fill="Población") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) +
+  geom_text(data=subset(genpobreza_casen, pobreza_ingresos == 1), aes(label = Freq, y= Freq), color="white", position = position_dodge(0.9), vjust=2, size=3) -> g_comp_pobreza
+
+
+pobreza60_casen %>%
+  filter(pobreza_ingresos == 1) %>%
+ggplot(aes(fill=Año, y=Freq, x=as.factor(as.character(Año)))) + 
+    geom_bar(position="dodge", stat="identity") +
+  labs(y="Porcentaje(%)", x="", fill="Población") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) +
+  theme(legend.position="none") +
+  geom_text(data=subset(pobreza60_casen, pobreza_ingresos == 1), aes(label = Freq), color="white", position = position_stack(vjust=0.9), size=3) -> g_pobreza60
+
+```
+
+### por sexo
+
+```{r}
+#2017
+
+hombres_casen <- subset(edad_60,  sexo == 1)
+
+svytable(~pobreza_ingresos, hombres_casen)
+
+mujeres_casen <- subset(edad_60,  sexo == 2)
+
+svytable(~pobreza_ingresos, mujeres_casen)
+
+pobres_casen <- subset(edad_60,  pobreza_ingresos == 1)
+
+prop.table(svytable(~sexo, pobres_casen))
+
+# 2021
+
+hombres_casen21 <- subset(casen60_svy,  sexo == 1)
+
+prop.table(svytable(~pobreza_ingresos, hombres_casen21))
+
+mujeres_casen21 <- subset(casen60_svy,  sexo == 2)
+
+prop.table(svytable(~pobreza_ingresos, mujeres_casen21))
+
+prop.table(svytable(~pobreza_ingresos, casen60_svy))
+
+pobres_casen21 <- subset(casen60_svy,  pobreza_ingresos == 1)
+
+prop.table(svytable(~sexo, pobres_casen21))
+
+```
+
+### por rango etario
+
+```{r}
+#2017
+
+casen17_6070 <- subset(edad_60,  rangos_etarios == "60-70")
+
+prop.table(svytable(~pobreza_ingresos, casen17_6070 ))*100
+
+casen17_7080<- subset(edad_60,  rangos_etarios == "70-80")
+
+prop.table(svytable(~pobreza_ingresos, casen17_7080 ))*100
+
+casen17_8090<- subset(edad_60,  rangos_etarios == "80-90")
+
+prop.table(svytable(~pobreza_ingresos, casen17_8090))*100
+
+casen17_90<- subset(edad_60,  rangos_etarios == "90+")
+
+prop.table(svytable(~pobreza_ingresos, casen17_90))*100
+
+#ver cuantos pobres por rango etario
+prop.table(svytable(~rangos_etarios, pobres_casen))*100
+
+# 2021
+
+casen21_6070 <- subset(casen60_svy,  rangos_etarios == "60-70")
+
+prop.table(svytable(~pobreza_ingresos, casen21_6070))
+
+casen21_7080 <- subset(casen60_svy,  rangos_etarios == "70-80")
+
+prop.table(svytable(~pobreza_ingresos,casen21_7080))
+
+casen21_8090 <- subset(casen60_svy,  rangos_etarios == "80-90")
+
+prop.table(svytable(~pobreza_ingresos,casen21_8090))
+
+casen21_90 <- subset(casen60_svy,  rangos_etarios == "90+")
+
+prop.table(svytable(~pobreza_ingresos,casen21_90))
+
+#pobres por rango etario
+prop.table(svytable(~rangos_etarios, pobres_casen21))*100
+```
+### por eduacion
+
+```{r}
+#pobres por rango etario
+pe17 <- as.data.frame(prop.table(svytable(~educ, pobres_casen))*100)
+pe20 <- as.data.frame(prop.table(svytable(~educ, pobres_casen21))*100)
+```
+
+
+## Busqueda de trabajo
+```{r}
+#pq no busco pega en el ultimo mes
+Casen_en_Pandemia_2020_STATA$o7
+
+pq_nobuscotrabajo<- as.data.frame(prop.table(svytable(~o7, casen60_svy))*100) %>% arrange(-Freq)
+
+#temor por contagiarse de covid fue la carta razon 
+#1=por estar jubilado, 2=esta enfermo o tiene alguna discapacidad, 3=quehaceres del hogar, 4=covid***, 5=otra razon, 6=no tiene interes en trabajar, 7=no tiene con quien dejar a adultos mayores 
+```
+
+## Inseguridad alimentaria
+```{r}
+#Ahora me gustaría hacerle algunas preguntas acerca de la alimentación de los integrantes de su hogar. Durante los últimos 12 meses, en algún momento:
+## a. ¿Usted u otra persona en su hogar se preocupó por no tener suficientes alimentos para comer por falta de dinero u otros recursos?
+  
+Casen_en_Pandemia_2020_STATA$r8a #1=si
+
+ia1<- as.data.frame(prop.table(svytable(~r8a, casen60_svy))*100)
+ia1 <- rename(ia1, "Respuesta" = "r8a")
+ia1$Cod_pregunta <- c("r8a")
+ia1$Pregunta <- c("¿Usted u otra persona en su hogar\n se preocupó por no tener\n suficientes alimentos para comer\n por falta de dinero u otros recursos?")
+ia1$Label <- c("Se preocupó por no\n tener suficientes alimentos\n para comer")
+  
+##b. ¿Alguna vez usted u otra persona en su hogar no pudo comer alimentos saludables y nutritivos por falta de dinero u otros recursos?
+
+Casen_en_Pandemia_2020_STATA$r8b
+
+ia2<- as.data.frame(prop.table(svytable(~r8b, casen60_svy))*100)
+ia2 <- rename(ia2, "Respuesta" = "r8b")
+ia2$Cod_pregunta <- c("r8b")
+ia2$Pregunta <- c("¿Alguna vez usted u otra persona\n en su hogar no pudo comer\n alimentos saludables y nutritivos por\n falta de dinero u otros recursos?")
+ia2$Label <- c("No pudo comer alimentos\n saludables y nutritivos")
+  
+##c. Pensando en los últimos 12 meses, ¿alguna vez usted u otra persona en su hogar comió poca variedad de alimentos por falta de dinero u otros recursos?
+
+Casen_en_Pandemia_2020_STATA$r8c
+
+ia3<- as.data.frame(prop.table(svytable(~r8c, casen60_svy))*100)
+ia3 <- rename(ia3, "Respuesta" = "r8c")
+ia3$Cod_pregunta <- c("r8c")
+ia3$Pregunta <- c("Pensando en los últimos 12 meses,\n ¿alguna vez usted u otra persona en\n su hogar comió poca variedad de\n alimentos por falta de dinero u otros\n recursos?")
+ia3$Label <- c("Comió poca variedad\n de alimentos")
+
+##d. ¿Alguna vez usted u otra persona en su hogar tuvo que dejar de desayunar, almorzar, tomar once o cenar porque no había suficiente  dinero u otros recursos para obtener alimentos?
+
+Casen_en_Pandemia_2020_STATA$r8d
+
+ia4<- as.data.frame(prop.table(svytable(~r8d, casen60_svy))*100)
+ia4 <- rename(ia4, "Respuesta" = "r8d")
+ia4$Cod_pregunta <- c("r8d")
+ia4$Pregunta <- c("¿Alguna vez usted u otra\n persona en su hogar tuvo que\n dejar de desayunar, almorzar,\n tomar once o cenar porque\n no había suficiente  dinero\n u otros recursos para obtener\n alimentos?")
+ia4$Label <- c("Dejó de desayunar,\n almorzar, tomar\n once o cenar")
+
+##e. ¿Alguna vez usted u otra persona en su hogar comió menos de lo que pensaba que debía comer por falta de dinero u otros recursos?
+
+Casen_en_Pandemia_2020_STATA$r8e
+
+ia5<- as.data.frame(prop.table(svytable(~r8e, casen60_svy))*100) 
+ia5 <- rename(ia5, "Respuesta" = "r8e")
+ia5$Cod_pregunta <- c("r8e")
+ia5$Pregunta <- c("¿Alguna vez usted u otra\n persona en su hogar comió\n menos de lo que pensaba\n que debía comer por falta de dinero u otros\n recursos?")
+ia5$Label <- c("Comió menos de lo que\n pensaba que debía comer")
+
+## f. Pensando en los últimos 12 meses, ¿alguna vez suhogar se quedó sin alimentos por falta de dinero u otros recursos?
+
+Casen_en_Pandemia_2020_STATA$r8f
+
+ia6<- as.data.frame(prop.table(svytable(~r8f, casen60_svy))*100)
+ia6 <- rename(ia6, "Respuesta" = "r8f")
+ia6$Cod_pregunta <- c("r8f")
+ia6$Pregunta <- c("Pensando en los últimos\n 12 meses, ¿alguna vez su\n hogar se quedó sin alimentos\n por falta de dinero u otros\n recursos?")
+ia6$Label <- c("Se quedó sin alimentos")
+
+## g. ¿Alguna vez usted u otra persona en su hogar sintió hambre y no comió por falta de dinero u otros recursos para obtener alimentos?
+
+Casen_en_Pandemia_2020_STATA$r8g
+
+ia7<- as.data.frame(prop.table(svytable(~r8g, casen60_svy))*100)
+ia7 <- rename(ia7, "Respuesta" = "r8g")
+ia7$Cod_pregunta <- c("r8g")
+ia7$Pregunta <- c("¿Alguna vez usted u otra\n persona en su hogar sintió\n hambre y no comió por\n falta de dinero u otros\n recursos para obtener\n alimentos?")
+ia7$Label <- c("Sintió hambre y no comió")
+## h. ¿Alguna vez usted u otra persona en su hogar dejó de comer todo un día por falta de dinero u otros recursos?
+
+Casen_en_Pandemia_2020_STATA$r8h
+
+ia8<- as.data.frame(prop.table(svytable(~r8h, casen60_svy))*100)
+ia8 <- rename(ia8, "Respuesta" = "r8h")
+ia8$Cod_pregunta <- c("r8h")
+ia8$Pregunta <- c("¿Alguna vez usted u otra\n persona en su hogar dejó de\n comer todo un día por falta\n de dinero u otros recursos?")
+ia8$Label <- c("Dejó de comer todo un día")
+
+ia_df <- bind_rows(ia1,ia2,ia3,ia4,ia5,ia6,ia7,ia8)
+```
+```{r}
+ia_df %>%
+  filter(Respuesta == 1) %>%
+  arrange(Freq) %>%    # First sort by val. This sort the dataframe but NOT the factor levels
+  mutate(name=factor(Label, levels=Label))%>%  
+ggplot(aes(x=name, y=Freq, fill=name)) +
+  #geom_point() + 
+  #geom_segment(aes(x=name, xend=name, y=0, yend=Freq))   +
+  geom_col() +
+  labs(y="Porcentaje(%)", x="") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) +
+  coord_flip() +
+  theme(legend.position="none") +
+  geom_text(aes(label = (round(Freq, 0)), y=Freq), color="white", position = position_stack(vjust=1), size=3, hjust=1.2) -> g_inseguridad_alimentaria
+
+
+```
+### sexo
+```{r}
+r8a60 <- subset(casen60_svy,  r8a == 1)
+as.data.frame(prop.table(svytable(~sexo, r8a60))*100)
+
+r8b60 <- subset(casen60_svy,  r8b == 1)
+as.data.frame(prop.table(svytable(~sexo, r8b60))*100)
+
+r8c60 <- subset(casen60_svy,  r8c == 1)
+as.data.frame(prop.table(svytable(~sexo, r8c60))*100)
+
+r8d60 <- subset(casen60_svy,  r8d == 1)
+as.data.frame(prop.table(svytable(~sexo, r8d60))*100)
+
+r8e60 <- subset(casen60_svy,  r8e == 1)
+as.data.frame(prop.table(svytable(~sexo, r8e60))*100)
+
+r8f60 <- subset(casen60_svy,  r8f == 1)
+as.data.frame(prop.table(svytable(~sexo, r8f60))*100)
+
+r8g60 <- subset(casen60_svy,  r8g == 1)
+as.data.frame(prop.table(svytable(~sexo, r8g60))*100)
+
+r8h60 <- subset(casen60_svy,  r8h == 1)
+as.data.frame(prop.table(svytable(~sexo, r8h60))*100)
+```
+### educ 
+```{r}
+as.data.frame(prop.table(svytable(~educ, r8a60))*100)
+as.data.frame(prop.table(svytable(~educ, r8b60))*100)
+as.data.frame(prop.table(svytable(~educ, r8c60))*100)
+as.data.frame(prop.table(svytable(~educ, r8d60))*100)
+as.data.frame(prop.table(svytable(~educ, r8e60))*100)
+as.data.frame(prop.table(svytable(~educ, r8f60))*100)
+as.data.frame(prop.table(svytable(~educ, r8g60))*100)
+as.data.frame(prop.table(svytable(~educ, r8h60))*100)
+```
+### edad
+```{r}
+as.data.frame(prop.table(svytable(~rangos_etarios, r8a60))*100)
+as.data.frame(prop.table(svytable(~rangos_etarios, r8b60))*100)
+as.data.frame(prop.table(svytable(~rangos_etarios, r8c60))*100)
+as.data.frame(prop.table(svytable(~rangos_etarios, r8d60))*100)
+as.data.frame(prop.table(svytable(~rangos_etarios, r8e60))*100)
+as.data.frame(prop.table(svytable(~rangos_etarios, r8f60))*100)
+as.data.frame(prop.table(svytable(~rangos_etarios, r8g60))*100)
+as.data.frame(prop.table(svytable(~rangos_etarios, r8h60))*100)
+
+
+#total por rango etaarioa
+
+prop.table(svytable(~r8a, casen21_6070))
+
+prop.table(svytable(~r8a,casen21_7080))
+
+prop.table(svytable(~r8a,casen21_8090))
+
+prop.table(svytable(~r8a,casen21_90))
+
+prop.table(svytable(~r8b, casen21_6070))
+
+prop.table(svytable(~r8b,casen21_7080))
+
+prop.table(svytable(~r8b,casen21_8090))
+
+prop.table(svytable(~r8b,casen21_90))
+
+prop.table(svytable(~r8c, casen21_6070))
+
+prop.table(svytable(~r8c,casen21_7080))
+
+prop.table(svytable(~r8c,casen21_8090))
+
+prop.table(svytable(~r8c,casen21_90))
+
+prop.table(svytable(~r8d, casen21_6070))
+
+prop.table(svytable(~r8d,casen21_7080))
+
+prop.table(svytable(~r8d,casen21_8090))
+
+prop.table(svytable(~r8d,casen21_90))
+
+prop.table(svytable(~r8e, casen21_6070))
+
+prop.table(svytable(~r8e,casen21_7080))
+
+prop.table(svytable(~r8e,casen21_8090))
+
+prop.table(svytable(~r8e,casen21_90))
+
+prop.table(svytable(~r8f, casen21_6070))
+
+prop.table(svytable(~r8f,casen21_7080))
+
+prop.table(svytable(~r8f,casen21_8090))
+
+prop.table(svytable(~r8f,casen21_90))
+
+prop.table(svytable(~r8g, casen21_6070))
+
+prop.table(svytable(~r8g,casen21_7080))
+
+prop.table(svytable(~r8g,casen21_8090))
+
+prop.table(svytable(~r8g,casen21_90))
+
+```
+
+### Capacitación
+
+```{r}
+des_17$variables$rangos_etarios <- as.factor(as.character(des_17$variables$rangos_etarios))
+
+des_17$variables$sexo <- as.factor(as.character(des_17$variables$sexo))
+
+des_17$variables$o30 <- as.factor(as.character(des_17$variables$o30))
+
+#     1          Sí
+#     2          No
+#     8     No sabe
+#     9 No responde
+
+
+svyciprop( ~I(o30=="1"), des_17) %>% as.table() %>% as.data.frame()
+
+
+svyby (  ~ rangos_etarios, ~I(o30=="1"), des_17, svymean)  %>% as.data.frame()
+```
+
+
+# SOCIAL COVID ENCUESTA 
+
+## Ingresos 
+```{r}
+socialcovid1 <- read_dta("Encuesta Social COVID-19.dta")
+socialcovid2 <- read_dta("Encuesta Social COVID-19 II.dta")
+
+socialcovid1$id_hogar[duplicated(socialcovid1$id_hogar)]
+
+socialcovid1 <- socialcovid1  %>% filter(!is.na(jh))
+
+socialcovid1<- socialcovid1 %>%
+  mutate(rangos_etarios= case_when(
+    thogar2 < 10 ~ "0-10",
+    ch03 >=10 & ch03 < 20 ~ "10-20",
+    ch03 >=20 & ch03 < 30 ~ "20-30",
+    ch03 >=30 & ch03 < 40 ~ "30-40",
+    ch03 >=40 & ch03 < 50 ~ "40-50",
+    ch03 >=50 & ch03 <= 60 ~ "50-60",
+    ch03 >=60 & ch03 <= 69 ~ "60-70",
+    ch03 >= 70 & ch03 <= 79~ "70-80",
+    ch03 >= 80 & ch03 <= 89~ "80-90",
+    ch03 >= 90 ~ "90+"))
+
+socialcovid1<-socialcovid1 %>%
+  mutate(pm_hogares = if_else(thogar2 == 2 | thogar2 == 3, 1, 0))
+
+socialcovid1$pm_hogares <- factor(socialcovid1$pm_hogares, labels = c("sin PM", "con PM"))
+
+socialcovid1$ie10 <- factor(socialcovid1$ie10, labels=c("Aumentó", "Se mantuvo igual", "Disminuyó", "No sabe"))
+
+socialcovid1 <- socialcovid1 %>% 
+  mutate(sufi_ingresos = if_else(ie12 == 1 | ie12 == 2, 0, 
+                          if_else(ie12 == 3 | ie12 == 4, 1, 9)))
+
+socialcovid1$sufi_ingresos <- factor(socialcovid1$sufi_ingresos, labels=c("Les alcanza", "No les alcanza", "No sabe"))
+
+socialcovid1 <- socialcovid1 %>% 
+  mutate(sufi_ingresos2 = if_else(ie13 == 1 | ie13 == 2, 0, 
+                          if_else(ie13 == 3 | ie13 == 4, 1, 9)))
+
+socialcovid1$sufi_ingresos2 <- factor(socialcovid1$sufi_ingresos2, labels=c("Les alcanza", "No les alcanza", "No sabe"))
+
+
+covid_svy <- survey::svydesign(id=~varunit,
+                               strata=~estrato_covid,
+                            data = socialcovid1, 
+                            weights=~exp_macrozona)
+
+prop.table(svytable(~rangos_etarios, covid_svy))
+
+#AM en los hogares
+#1 Hogar con NNA 5.084
+#2 Hogar con AM 4.055
+#3. Hogar con NNA y AM 2.380
+#4. Hogar sin NNA y sin AM 2.129
+prop.table(svytable(~thogar2, covid_svy))
+
+#39%de los hogares tiene presencia de PM
+prop.table(svytable(~pm_hogares, covid_svy))
+
+covid_svy60 = subset(covid_svy, pm_hogares == "con PM")
+
+
+#Situación ingreso mensual debido a la crisis COVID-19
+#1 aumentaron
+#2 se mantuvieron
+#3 bajaron
+
+prop.table(svytable(~ie06, covid_svy))
+
+prop.table(svytable(~ie06, covid_svy60))
+
+#Situación ingreso mensual del hogar debido a la crisis COVID-19(ESTE SE USA EN EL PDF)
+
+ingresoporcrisis <- round(prop.table(svytable(~ie10, covid_svy60))*100,1)
+
+#suficiencia de ingresos ie12 antes de la crisis COVID-19
+prop.table(svytable(~ie12, covid_svy60))
+
+svymean( ~ as.factor(as.character(ie12)), covid_svy60, na.rm = TRUE)
+
+suficienciaingresos <- as.data.frame(round(prop.table(svytable(~sufi_ingresos, covid_svy60))*100,1))
+suficienciaingresos$cuando <- c("Antes de la pandemia")
+
+
+#suficiencia de ingresos ie13 mes pasado
+prop.table(svytable(~ie13, covid_svy60))
+
+svymean( ~ as.factor(as.character(ie13)), covid_svy60, na.rm = TRUE)
+
+suficienciaingresos2 <- as.data.frame(round(prop.table(svytable(~sufi_ingresos2, covid_svy60))*100,1))
+suficienciaingresos2$cuando <- c("Jun-Ago 2020")
+suficienciaingresos2 <- suficienciaingresos2 %>%
+  rename(sufi_ingresos = sufi_ingresos2)
+
+suficiencia_ingresosdf <-bind_rows(suficienciaingresos, suficienciaingresos2)
+
+#######################COVID 2 ###########
+
+socialcovid2 <- socialcovid2  %>% filter(ch07 ==1)#identifica al jef@ de hogar
+socialcovid2$id_hogar[duplicated(socialcovid2$id_hogar)]
+
+socialcovid1_60 = subset(socialcovid1, pm_hogares == "con PM")
+
+x <- socialcovid1_60  %>% pull(id_vivienda)
+
+#z <- socialcovid1[, 1]
+
+socialcovid2.1 <- socialcovid2 %>%
+  filter(id_vivienda %in% x) %>%
+  droplevels()
+
+socialcovid2$id_hogar[duplicated(socialcovid2$id_hogar)]#no hay
+
+#comparacion ingresos mes de julio
+socialcovid2.1$ie08 <- factor(socialcovid2.1$ie08, labels=c("Aumentó", "Se mantuvo igual", "Disminuyó", "No tenía ingresos del empleo en julio", "No sabe"))
+
+#comparacion ingresos antes de la crisis y mes pasado (levantamiento de datos noviembre y diciembre)
+socialcovid2.1$ie11 <- factor(socialcovid2.1$ie11, labels=c("Aumentó", "Se mantuvo igual", "Disminuyó", "No sabe"))
+
+#comparacion ingresos mes de julio y mes pasado (levantamiento de datos noviembre y diciembre)
+socialcovid2.1$ie13 <- factor(socialcovid2.1$ie13, labels=c("Aumentó", "Se mantuvo igual", "Disminuyó", "No sabe"))
+
+#suficiencia de ingresos mes pasado
+
+socialcovid2.1 <- socialcovid2.1 %>% 
+  mutate(sufi_ingresos = if_else(ie14 == 1 | ie14 == 2, 0, 
+                          if_else(ie14 == 3 | ie14 == 4, 1, 9)))
+
+socialcovid2.1$sufi_ingresos <- as.character(socialcovid2.1$sufi_ingresos )
+
+socialcovid2.1$sufi_ingresos <- factor(socialcovid2.1$sufi_ingresos, labels=c("Les alcanza", "No les alcanza", "No sabe"))
+
+covid_svy2 <- survey::svydesign(id=~VarUnit,
+                               strata=~VarStrat,
+                            data = socialcovid2.1, 
+                            weights=~exp_macrozona)
+
+prop.table(svytable(~ie08, covid_svy2))
+prop.table(svytable(~ie11, covid_svy2))
+prop.table(svytable(~ie13, covid_svy2))
+sufi_ingresosCOVID2 <- as.data.frame(round(prop.table(svytable(~sufi_ingresos, covid_svy2))*100,1))
+sufi_ingresosCOVID2$cuando <- c("Nov-Dic 2020")
+
+suficiencia_ingresosdf <-bind_rows(suficiencia_ingresosdf, sufi_ingresosCOVID2)
+```
+```{r}
+suficiencia_ingresosdf %>%
+  filter(sufi_ingresos != "No sabe") %>%
+ggplot(aes(x=cuando, y=Freq, group=sufi_ingresos, col=sufi_ingresos)) +
+  geom_point() +
+  geom_line()+
+  labs(y="Porcentaje(%)", x="Nivel Educacional", col="") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8))
+
+suficiencia_ingresosdf$cuando <- factor(suficiencia_ingresosdf$cuando, levels = c("Nov-Dic 2020", "Jun-Ago 2020", "Antes de la pandemia"))
+
+suficiencia_ingresosdf %>%
+  filter(sufi_ingresos == "No les alcanza") %>%
+ggplot(aes(x=as.factor(cuando), y=Freq, fill=cuando)) +
+  #geom_point() + 
+  #geom_segment(aes(x=cuando, xend=cuando, y=0, yend=Freq))   +
+  geom_col()+
+  labs(y="Porcentaje(%)", x="") +
+  coord_flip()+
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))+
+  #theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) +
+  theme(legend.position="none") +
+  geom_text(data=subset(suficiencia_ingresosdf, sufi_ingresos == "No les alcanza"), aes(label = (round(Freq, 0)), y=Freq), color="white", position = position_stack(vjust=1), size=3, hjust=1.2) -> g_suficiencia_ingresos
+```
+
