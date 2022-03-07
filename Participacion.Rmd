@@ -1,0 +1,1991 @@
+---
+title: "participacion"
+author: "Josefa Guerra"
+date: "10/13/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("~/Desktop/Observatorio del envejecimiento/Participacion")
+library(haven)
+library(foreign)
+#library(memisc)
+library(dplyr)
+library(survey)
+library(ggplot2)
+library(tidyverse)
+library(readxl)
+library(reshape2)
+library(ggrepel)
+library(gridExtra)
+```
+# ECV
+
+```{r}
+ecv <- read_sav("~/Desktop/Observatorio del envejecimiento/polifarmacia/encuesta calidad de vida/ECV 2007-2019 con ponderador final PUBLICA.sav")
+
+ecvsina <- ecv %>%
+  filter(!is.na(peso.consolidado)) %>%
+  droplevels()
+
+ecvsurv<- survey::svydesign(id=~1,data = ecvsina, weights=~peso.consolidado)
+
+#ecvsurv2<-update(ecvsurv, group_age=cut(EDAD, breaks = seq(59,111,by=10), right = TRUE))
+
+ecvsurv2<-update(ecvsurv, group_age =cut(EDAD, 
+                       breaks = c(-Inf, 70, 80, Inf), 
+                       labels = c( "60-69", "70-79", "80+"), 
+                       right = FALSE))
+
+ecvsurv2$variables$group_age <- as.factor(as.character(ecvsurv2$variables$group_age))
+ecvsurv2$variables$SEXO <- as.factor(as.character(ecvsurv2$variables$SEXO))
+ecvsurv2$variables$EDUCA3 <- as.factor(as.character(ecvsurv2$variables$EDUCA3))
+ecvsurv2$variables$ACTIVIDAD2_a1 <- as.factor(as.character(ecvsurv2$variables$ACTIVIDAD2_a1))
+ecvsurv2$variables$ACTIVIDAD2_b1 <- as.factor(as.character(ecvsurv2$variables$ACTIVIDAD2_b1))
+ecvsurv2$variables$ACTIVIDAD2_c1 <- as.factor(as.character(ecvsurv2$variables$ACTIVIDAD2_c1))
+ecvsurv2$variables$ACTIVIDAD2_d1 <- as.factor(as.character(ecvsurv2$variables$ACTIVIDAD2_d1))
+ecvsurv2$variables$ACTIVIDAD2_e1 <- as.factor(as.character(ecvsurv2$variables$ACTIVIDAD2_e1))
+ecvsurv2$variables$ACTIVIDAD2_f1 <- as.factor(as.character(ecvsurv2$variables$ACTIVIDAD2_f1))
+ecvsurv2$variables$ACTIVIDAD2_g1 <- as.factor(as.character(ecvsurv2$variables$ACTIVIDAD2_g1))
+ecvsurv2$variables$ACTIVIDAD2_h1 <- as.factor(as.character(ecvsurv2$variables$ACTIVIDAD2_h1))
+ecvsurv2$variables$ECON18 <- as.factor(as.character(ecvsurv2$variables$ECON18))
+ecvsurv2$variables$ECON19 <- as.factor(as.character(ecvsurv2$variables$ECON19))
+
+ecv2007 <-subset(ecvsurv2, AÑO == 2007)
+ecv2010 <-subset(ecvsurv2, AÑO == 2010)
+ecv2013 <-subset(ecvsurv2, AÑO == 2013)
+ecv2016 <-subset(ecvsurv2, AÑO == 2016)
+ecv2019 <-subset(ecvsurv2, AÑO == 2019)
+```
+## PARTICIPACION GENERAL
+
+```{r}
+ecvtest <- ecvsina %>%
+  select(c(1:11, 485, 483, 111:118))
+
+ecvtest$ACTIVIDAD2_a1[ecvtest$ACTIVIDAD2_a1 == 2] <- 0
+ecvtest$ACTIVIDAD2_b1[ecvtest$ACTIVIDAD2_b1 == 2] <- 0
+ecvtest$ACTIVIDAD2_c1[ecvtest$ACTIVIDAD2_c1 == 2] <- 0
+ecvtest$ACTIVIDAD2_d1[ecvtest$ACTIVIDAD2_d1 == 2] <- 0
+ecvtest$ACTIVIDAD2_e1[ecvtest$ACTIVIDAD2_e1 == 2] <- 0
+ecvtest$ACTIVIDAD2_f1[ecvtest$ACTIVIDAD2_f1 == 2] <- 0
+ecvtest$ACTIVIDAD2_g1[ecvtest$ACTIVIDAD2_g1 == 2] <- 0
+ecvtest$ACTIVIDAD2_h1[ecvtest$ACTIVIDAD2_h1 == 2] <- 0
+
+ecvtest$ACTIVIDAD2_a1[ecvtest$ACTIVIDAD2_a1 == 9] <- 0
+ecvtest$ACTIVIDAD2_b1[ecvtest$ACTIVIDAD2_b1 == 9] <- 0
+ecvtest$ACTIVIDAD2_c1[ecvtest$ACTIVIDAD2_c1 == 9] <- 0
+ecvtest$ACTIVIDAD2_d1[ecvtest$ACTIVIDAD2_d1 == 9] <- 0
+ecvtest$ACTIVIDAD2_e1[ecvtest$ACTIVIDAD2_e1 == 9] <- 0
+ecvtest$ACTIVIDAD2_f1[ecvtest$ACTIVIDAD2_f1 == 9] <- 0
+ecvtest$ACTIVIDAD2_g1[ecvtest$ACTIVIDAD2_g1 == 9] <- 0
+ecvtest$ACTIVIDAD2_h1[ecvtest$ACTIVIDAD2_h1 == 9] <- 0
+
+#ecvtest <- ecvtest %>% select(c("AÑO", "peso.consolidado", "ACTIVIDAD2_a1", "ACTIVIDAD2_b1", "ACTIVIDAD2_c1", "ACTIVIDAD2_d1", "ACTIVIDAD2_e1"))
+
+ecvtest$participa <- rowSums(ecvtest[,14:21])
+
+#ecvtest$participa <- rowSums(ecvtest[,3:7])
+
+ecvtest$participa[ecvtest$participa > 1] <- 1
+
+ecvsurvtest<- survey::svydesign(id=~1,data = ecvtest, weights=~peso.consolidado)
+
+ecvsurvtest<-update(ecvsurvtest, group_age =cut(EDAD, 
+                       breaks = c(-Inf, 70, 80, Inf), 
+                       labels = c( "60-69", "70-79", "80+"), 
+                       right = FALSE))
+
+ecvsurvtest$variables$participa <- as.factor(as.character(ecvsurvtest$variables$participa))
+
+ecvsurvtest$variables$SEXO <- as.factor(as.character(ecvsurvtest$variables$SEXO))
+
+ecvsurvtest$variables$group_age <- as.factor(as.character(ecvsurvtest$variables$group_age))
+
+ecvsurvtest$variables$EDUCA3 <- as.factor(as.character(ecvsurvtest$variables$EDUCA3))
+
+ecvtest2007 <-subset(ecvsurvtest, AÑO == 2007)
+ecvtest2010 <-subset(ecvsurvtest, AÑO == 2010)
+ecvtest2013 <-subset(ecvsurvtest, AÑO == 2013)
+ecvtest2016 <-subset(ecvsurvtest, AÑO == 2016)
+ecvtest2019 <-subset(ecvsurvtest, AÑO == 2019)
+
+svyciprop( ~I(participa=="1"), ecvtest2010) %>% as.table() %>% as.data.frame()-> partipacion_tot_2010
+partipacion_tot_2010$año <- 2010
+svyciprop( ~I(participa=="1"), ecvtest2013) %>% as.table() %>% as.data.frame()-> partipacion_tot_2013
+partipacion_tot_2013$año <- 2013
+svyciprop( ~I(participa=="1"), ecvtest2016) %>% as.table() %>% as.data.frame()-> partipacion_tot_2016
+partipacion_tot_2016$año <- 2016
+svyciprop( ~I(participa=="1"), ecvtest2019) %>% as.table() %>% as.data.frame()-> partipacion_tot_2019
+partipacion_tot_2019$año <-2019
+
+bind_rows(partipacion_tot_2010, partipacion_tot_2013, partipacion_tot_2016, partipacion_tot_2019) -> participacion_total_años
+
+participacion_total_años$Freq <- participacion_total_años$Freq*100
+
+participacion_total_años %>%
+  ggplot(aes(x=as.factor(año), y=Freq, group=1)) +
+  geom_point(col="blue") +
+  geom_line(col="blue") +
+  #facet_grid(. ~ `Calculation6 Dimension (copy)`) +
+  labs(y="Porcentaje (%)", x="", col = "Participación", title="Participación general") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) +
+  scale_y_continuous(limits = c(35,55)) -> g_participacion_total
+
+```
+### SEXO
+```{r}
+svyby (  ~ SEXO, ~ I(participa=="1"), ecvtest2010, svymean)  %>% as.data.frame() -> part_sexo_total2010
+part_sexo_total2010$año <-2010
+svyby (  ~ SEXO, ~ I(participa=="1"), ecvtest2013, svymean)  %>% as.data.frame() -> part_sexo_total2013
+part_sexo_total2013$año <-2013
+svyby (  ~ SEXO, ~ I(participa=="1"), ecvtest2016, svymean)  %>% as.data.frame() -> part_sexo_total2016
+part_sexo_total2016$año <-2016
+svyby (  ~ SEXO, ~ I(participa=="1"), ecvtest2019, svymean)  %>% as.data.frame() -> part_sexo_total2019
+part_sexo_total2019$año <-2019
+
+bind_rows(part_sexo_total2010, part_sexo_total2013, part_sexo_total2016, part_sexo_total2019) -> participacion_total_sexo
+
+participacion_total_sexo<-pivot_longer(participacion_total_sexo,cols=c("SEXO1","SEXO2"),names_to = "Sexo", values_to = "Freq")
+
+participacion_total_sexo <- participacion_total_sexo %>% 
+  filter(`I(participa == "1")` == "TRUE")
+
+participacion_total_sexo$Sexo <- factor(participacion_total_sexo$Sexo, labels = c("Hombres", "Mujeres"))
+
+participacion_total_sexo$Freq <- participacion_total_sexo$Freq*100
+
+participacion_total_sexo %>%
+  ggplot(aes(x=as.factor(año), y=Freq, group=as.factor(Sexo), col=as.factor(Sexo))) +
+  geom_point() +
+  geom_line() +
+  labs(y="Porcentaje (%)", x="", col = "Género", title="Participación por género") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) +
+  scale_y_continuous(limits = c(20,80)) -> g_participacion_total_sexo
+```
+
+```{r}
+svyby (  ~ participa, ~ I(SEXO=="2"), ecvtest2010, svymean)  %>% as.data.frame() %>% filter(`I(SEXO == "2")`== TRUE) %>% select(participa1)  -> part_mujeres_total2010
+part_mujeres_total2010$año <-2010
+svyby (  ~ participa, ~ I(SEXO=="2"), ecvtest2013, svymean)  %>% as.data.frame()  %>% filter(`I(SEXO == "2")`== TRUE) %>% select(participa1)-> part_mujeres_total2013
+part_mujeres_total2013$año <-2013
+svyby (  ~ participa, ~ I(SEXO=="2"), ecvtest2016, svymean)  %>% as.data.frame()  %>% filter(`I(SEXO == "2")`== TRUE) %>% select(participa1)-> part_mujeres_total2016
+part_mujeres_total2016$año <-2016
+svyby (  ~ participa, ~ I(SEXO=="2"), ecvtest2019, svymean)  %>% as.data.frame()  %>% filter(`I(SEXO == "2")`== TRUE) %>% select(participa1)-> part_mujeres_total2019
+part_mujeres_total2019$año <-2019
+
+bind_rows(part_mujeres_total2010, part_mujeres_total2013, part_mujeres_total2016, part_mujeres_total2019) -> participacion_mujeres_total
+
+participacion_mujeres_total$Sexo <- "Mujeres"
+participacion_mujeres_total$participa1 <- participacion_mujeres_total$participa1*100
+
+svyby (  ~ participa, ~ I(SEXO=="1"), ecvtest2010, svymean)  %>% as.data.frame() %>% filter(`I(SEXO == "1")`== TRUE) %>% select(participa1)  -> part_hombres_total2010
+part_hombres_total2010$año <-2010
+svyby (  ~ participa, ~ I(SEXO=="1"), ecvtest2013, svymean)  %>% as.data.frame()  %>% filter(`I(SEXO == "1")`== TRUE) %>% select(participa1)-> part_hombres_total2013
+part_hombres_total2013$año <-2013
+svyby (  ~ participa, ~ I(SEXO=="1"), ecvtest2016, svymean)  %>% as.data.frame()  %>% filter(`I(SEXO == "1")`== TRUE) %>% select(participa1)-> part_hombres_total2016
+part_hombres_total2016$año <-2016
+svyby (  ~ participa, ~ I(SEXO=="1"), ecvtest2019, svymean)  %>% as.data.frame()  %>% filter(`I(SEXO == "1")`== TRUE) %>% select(participa1)-> part_hombres_total2019
+part_hombres_total2019$año <-2019
+
+bind_rows(part_hombres_total2010, part_hombres_total2013, part_hombres_total2016, part_hombres_total2019) -> participacion_hombres_total
+
+participacion_hombres_total$Sexo <- "Hombres"
+participacion_hombres_total$participa1 <- participacion_hombres_total$participa1*100
+
+bind_rows(participacion_hombres_total, participacion_mujeres_total) -> part_total_sexo_año
+
+part_total_sexo_año %>%
+  ggplot(aes(x=as.factor(año), y=participa1, group=as.factor(Sexo), col=as.factor(Sexo))) +
+  geom_point() +
+  geom_line() +
+  labs(y="Porcentaje (%)", x="", col = "Género", title="Participación por género") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) +
+  scale_y_continuous(limits = c(20,60)) -> g_participacion_total_sexo
+```
+
+### EDAD 
+```{r}  
+svyby (  ~ group_age, ~ I(participa=="1"), ecvtest2010, svymean)  %>% as.data.frame() -> part_edad_total2010
+part_edad_total2010$año <-2010
+svyby (  ~ group_age, ~ I(participa=="1"), ecvtest2013, svymean)  %>% as.data.frame() -> part_edad_total2013
+part_edad_total2013$año <-2013
+svyby (  ~ group_age, ~ I(participa=="1"), ecvtest2016, svymean)  %>% as.data.frame() -> part_edad_total2016
+part_edad_total2016$año <-2016
+svyby (  ~ group_age, ~ I(participa=="1"), ecvtest2019, svymean)  %>% as.data.frame() -> part_edad_total2019
+part_edad_total2019$año <-2019
+
+bind_rows(part_edad_total2010, part_edad_total2013, part_edad_total2016, part_edad_total2019) -> participacion_total_edad
+
+participacion_total_edad <- participacion_total_edad %>% 
+  filter(`I(participa == "1")` == "TRUE")
+
+participacion_total_edad<-pivot_longer(participacion_total_edad,cols=c(2:4),names_to = "Rango Etario", values_to = "Freq")
+
+participacion_total_edad$Freq <- participacion_total_edad$Freq*100
+
+participacion_total_edad$`Rango Etario` <- factor(participacion_total_edad$`Rango Etario`, levels = c("group_age60-69" , "group_age70-79", "group_age80+"), labels = c("60-69", "70-79", "80+"))
+
+participacion_total_edad %>%
+  ggplot(aes(x=as.factor(año), y=Freq, group=as.factor(`Rango Etario`), col=as.factor(`Rango Etario`))) +
+  geom_point() +
+  geom_line() +
+  labs(y="Porcentaje (%)", x="", col = "Rango Etario", title="Participación por edad") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) +
+  scale_y_continuous(limits = c(10,60)) -> g_participacion_total_edad
+```
+
+```{r}
+svyby (  ~ participa, ~ I(group_age=="60-69"), ecvtest2010, svymean)  %>% as.data.frame() %>% filter(`I(group_age == "60-69")`== TRUE) %>% select(participa1)  -> part_6069_total2010
+part_6069_total2010$año <-2010
+svyby (  ~ participa, ~ I(group_age=="60-69"), ecvtest2013, svymean)  %>% as.data.frame()  %>% filter(`I(group_age == "60-69")`== TRUE) %>% select(participa1)-> part_6069_total2013
+part_6069_total2013$año <-2013
+svyby (  ~ participa, ~ I(group_age=="60-69"), ecvtest2016, svymean)  %>% as.data.frame()  %>% filter(`I(group_age == "60-69")`== TRUE) %>% select(participa1)-> part_6069_total2016
+part_6069_total2016$año <-2016
+svyby (  ~ participa, ~ I(group_age=="60-69"), ecvtest2019, svymean)  %>% as.data.frame()  %>% filter(`I(group_age == "60-69")`== TRUE) %>% select(participa1)-> part_6069_total2019
+part_6069_total2019$año <-2019
+
+bind_rows(part_6069_total2010, part_6069_total2013, part_6069_total2016, part_6069_total2019) -> participacion_6069_total
+
+participacion_6069_total$`Rangos Etarios` <- "60-69"
+participacion_6069_total$participa1 <- participacion_6069_total$participa1*100
+
+
+svyby (  ~ participa, ~ I(group_age=="70-79"), ecvtest2010, svymean)  %>% as.data.frame() %>% filter(`I(group_age == "70-79")`== TRUE) %>% select(participa1)  -> part_7079_total2010
+part_7079_total2010$año <-2010
+svyby (  ~ participa, ~ I(group_age=="70-79"), ecvtest2013, svymean)  %>% as.data.frame()  %>% filter(`I(group_age == "70-79")`== TRUE) %>% select(participa1)-> part_7079_total2013
+part_7079_total2013$año <-2013
+svyby (  ~ participa, ~ I(group_age=="70-79"), ecvtest2016, svymean)  %>% as.data.frame()  %>% filter(`I(group_age == "70-79")`== TRUE) %>% select(participa1)-> part_7079_total2016
+part_7079_total2016$año <-2016
+svyby (  ~ participa, ~ I(group_age=="70-79"), ecvtest2019, svymean)  %>% as.data.frame()  %>% filter(`I(group_age == "70-79")`== TRUE) %>% select(participa1)-> part_7079_total2019
+part_7079_total2019$año <-2019
+
+bind_rows(part_7079_total2010, part_7079_total2013, part_7079_total2016, part_7079_total2019) -> participacion_7079_total
+
+participacion_7079_total$`Rangos Etarios` <- "70-79"
+participacion_7079_total$participa1 <- participacion_7079_total$participa1*100
+
+
+svyby (  ~ participa, ~ I(group_age=="80+"), ecvtest2010, svymean)  %>% as.data.frame() %>% filter(`I(group_age == "80+")`== TRUE) %>% select(participa1)  -> part_80mas_total2010
+part_80mas_total2010$año <-2010
+svyby (  ~ participa, ~ I(group_age=="80+"), ecvtest2013, svymean)  %>% as.data.frame()  %>% filter(`I(group_age == "80+")`== TRUE) %>% select(participa1)-> part_80mas_total2013
+part_80mas_total2013$año <-2013
+svyby (  ~ participa, ~ I(group_age=="80+"), ecvtest2016, svymean)  %>% as.data.frame()  %>% filter(`I(group_age == "80+")`== TRUE) %>% select(participa1)-> part_80mas_total2016
+part_80mas_total2016$año <-2016
+svyby (  ~ participa, ~ I(group_age=="80+"), ecvtest2019, svymean)  %>% as.data.frame()  %>% filter(`I(group_age == "80+")`== TRUE) %>% select(participa1)-> part_80mas_total2019
+part_80mas_total2019$año <-2019
+
+bind_rows(part_80mas_total2010, part_80mas_total2013, part_80mas_total2016, part_80mas_total2019) -> participacion_80mas_total
+
+participacion_80mas_total$`Rangos Etarios` <- "80+"
+participacion_80mas_total$participa1 <- participacion_80mas_total$participa1*100
+
+bind_rows(participacion_6069_total, participacion_7079_total, participacion_80mas_total) -> part_total_edad_año
+
+part_total_edad_año %>%
+  ggplot(aes(x=as.factor(año), y=participa1, group=as.factor(`Rangos Etarios`), col=as.factor(`Rangos Etarios`))) +
+  geom_point() +
+  geom_line() +
+  labs(y="Porcentaje (%)", x="", col = "Rangos Etarios", title="Participación por edad") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) +
+  scale_y_continuous(limits = c(20,60)) -> g_participacion_total_edad
+```
+
+### EDUC
+```{r}  
+svyby (  ~ EDUCA3, ~ I(participa=="1"), ecvtest2010, svymean)  %>% as.data.frame() -> part_educ_total2010
+part_educ_total2010$año <-2010
+svyby (  ~ EDUCA3, ~ I(participa=="1"), ecvtest2013, svymean)  %>% as.data.frame() -> part_educ_total2013
+part_educ_total2013$año <-2013
+svyby (  ~ EDUCA3, ~ I(participa=="1"), ecvtest2016, svymean)  %>% as.data.frame() -> part_educ_total2016
+part_educ_total2016$año <-2016
+svyby (  ~ EDUCA3, ~ I(participa=="1"), ecvtest2019, svymean)  %>% as.data.frame() -> part_educ_total2019
+part_educ_total2019$año <-2019
+
+ecvtest2013p <-subset(ecvtest2013 , participa == 1)
+svytable(~EDUCA3, ecvtest2013p)
+svytable(~EDUCA3, ecvtest2013p) %>% prop.table() -> part_educ_total2013
+part_educ_total2013$año <-2013
+
+bind_rows(part_educ_total2010, part_educ_total2013, part_educ_total2016, part_educ_total2019) -> participacion_total_educ
+
+participacion_total_educ <- participacion_total_educ %>% 
+  filter(`I(participa == "1")` == "TRUE")
+
+participacion_total_educ<-pivot_longer(participacion_total_educ,cols=c(2:4),names_to = "Nivel Educacional", values_to = "Freq")
+
+participacion_total_educ$Freq <- participacion_total_educ$Freq*100
+
+participacion_total_educ$`Nivel Educacional` <- factor(participacion_total_educ$`Nivel Educacional`, levels = c("EDUCA31" , "EDUCA32", "EDUCA33"), labels = c("Básica", "Media", "Superior"))
+
+participacion_total_educ %>%
+  ggplot(aes(x=as.factor(año), y=Freq, group=as.factor(`Nivel Educacional`), col=as.factor(`Nivel Educacional`))) +
+  geom_point() +
+  geom_line() +
+  labs(y="Porcentaje (%)", x="", col = "Educación", title="Participación por nivel educacional") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) +
+  scale_y_continuous(limits = c(10,60)) -> g_participacion_total_educ
+```
+
+```{r}
+svyby (  ~ participa, ~ I(EDUCA3=="1"), ecvtest2010, svymean)  %>% as.data.frame() %>% filter(`I(EDUCA3 == "1")`== TRUE) %>% select(participa1)  -> part_basica_total2010
+part_basica_total2010$año <-2010
+svyby (  ~ participa, ~ I(EDUCA3=="1"), ecvtest2013, svymean)  %>% as.data.frame()  %>% filter(`I(EDUCA3 == "1")`== TRUE) %>% select(participa1)-> part_basica_total2013
+part_basica_total2013$año <-2013
+svyby (  ~ participa, ~ I(EDUCA3=="1"), ecvtest2016, svymean)  %>% as.data.frame()  %>% filter(`I(EDUCA3 == "1")`== TRUE) %>% select(participa1)-> part_basica_total2016
+part_basica_total2016$año <-2016
+svyby (  ~ participa, ~ I(EDUCA3=="1"), ecvtest2019, svymean)  %>% as.data.frame()  %>% filter(`I(EDUCA3 == "1")`== TRUE) %>% select(participa1)-> part_basica_total2019
+part_basica_total2019$año <-2019
+
+bind_rows(part_basica_total2010, part_basica_total2013, part_basica_total2016, part_basica_total2019) -> participacion_basica_total
+
+participacion_basica_total$Educacion <- "Básica"
+participacion_basica_total$participa1 <- participacion_basica_total$participa1*100
+
+svyby (  ~ participa, ~ I(EDUCA3=="2"), ecvtest2010, svymean)  %>% as.data.frame() %>% filter(`I(EDUCA3 == "2")`== TRUE) %>% select(participa1)  -> part_media_total2010
+part_media_total2010$año <-2010
+svyby (  ~ participa, ~ I(EDUCA3=="2"), ecvtest2013, svymean)  %>% as.data.frame()  %>% filter(`I(EDUCA3 == "2")`== TRUE) %>% select(participa1)-> part_media_total2013
+part_media_total2013$año <-2013
+svyby (  ~ participa, ~ I(EDUCA3=="2"), ecvtest2016, svymean)  %>% as.data.frame()  %>% filter(`I(EDUCA3 == "2")`== TRUE) %>% select(participa1)-> part_media_total2016
+part_media_total2016$año <-2016
+svyby (  ~ participa, ~ I(EDUCA3=="2"), ecvtest2019, svymean)  %>% as.data.frame()  %>% filter(`I(EDUCA3 == "2")`== TRUE) %>% select(participa1)-> part_media_total2019
+part_media_total2019$año <-2019
+
+bind_rows(part_media_total2010, part_media_total2013, part_media_total2016, part_media_total2019) -> participacion_media_total
+
+participacion_media_total$Educacion <- "Media"
+participacion_media_total$participa1 <- participacion_media_total$participa1*100
+
+svyby (  ~ participa, ~ I(EDUCA3=="3"), ecvtest2010, svymean)  %>% as.data.frame() %>% filter(`I(EDUCA3 == "3")`== TRUE) %>% select(participa1)  -> part_superior_total2010
+part_superior_total2010$año <-2010
+svyby (  ~ participa, ~ I(EDUCA3=="3"), ecvtest2013, svymean)  %>% as.data.frame()  %>% filter(`I(EDUCA3 == "3")`== TRUE) %>% select(participa1)-> part_superior_total2013
+part_superior_total2013$año <-2013
+svyby (  ~ participa, ~ I(EDUCA3=="3"), ecvtest2016, svymean)  %>% as.data.frame()  %>% filter(`I(EDUCA3 == "3")`== TRUE) %>% select(participa1)-> part_superior_total2016
+part_superior_total2016$año <-2016
+svyby (  ~ participa, ~ I(EDUCA3=="3"), ecvtest2019, svymean)  %>% as.data.frame()  %>% filter(`I(EDUCA3 == "3")`== TRUE) %>% select(participa1)-> part_superior_total2019
+part_superior_total2019$año <-2019
+
+bind_rows(part_superior_total2010, part_superior_total2013, part_superior_total2016, part_superior_total2019) -> participacion_superior_total
+
+participacion_superior_total$Educacion <- "Superior"
+participacion_superior_total$participa1 <- participacion_superior_total$participa1*100
+
+bind_rows(participacion_basica_total, participacion_media_total, participacion_superior_total) -> part_total_educ_año
+
+part_total_educ_año %>%
+  ggplot(aes(x=as.factor(año), y=participa1, group=as.factor(Educacion), col=as.factor(Educacion))) +
+  geom_point() +
+  geom_line() +
+  labs(y="Porcentaje (%)", x="", col = "Educación", title="Participación por nivel educacional") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) +
+  scale_y_continuous(limits = c(20,60)) -> g_participacion_total_educ
+
+grid.arrange(g_participacion_total_sexo, g_participacion_total_edad, g_participacion_total_educ, nrow=3)
+```
+
+
+## ORGANIZACION O CLUB DE AM
+```{r}
+#SEXO
+#1 es hombre
+# 2 es mujer 
+# 99 no sabe 
+
+#ACTIVIDAD2_a1
+#1    Sí
+#2    No
+#99 Ns-Nr
+
+svyciprop( ~I(ACTIVIDAD2_a1=="1"), ecv2010) %>% as.table() %>% as.data.frame()-> part_2010 # coincide con el grafico pblicado en la ecv 2019
+part_2010$Año <- 2010
+
+#svyby( ~ ACTIVIDAD2_a1, ~ SEXO, ecv2010, svymean, na.rm = TRUE)
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_a1=="1"), ecv2010, svymean) %>% as.data.frame() -> sexo_2010 #ME TOMA EL 100% OCMO LOS QUE SI PARTICIPAN
+
+sexo_2010$Año <- 2010
+
+#ES LO MISMO QUE HACER ESTOS MIL SUBSETS
+#ecv10H <-subset(ecv2010, ACTIVIDAD2_a1 == "1")
+#as.data.frame(round( prop.table( svytable(~SEXO, ecv10H)) *100,2))%>% rename("value" = Freq) 
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_a1=="1"), ecv2010, svymean) %>% as.data.frame() -> edad_2010
+
+edad_2010$Año <- 2010
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_a1=="1"), ecv2010, svymean) %>% as.data.frame() -> educa_2010
+
+educa_2010$Año <- 2010
+
+
+#2013
+svyciprop( ~I(ACTIVIDAD2_a1=="1"), ecv2013) %>% as.table() %>% as.data.frame()->part_2013
+
+part_2013$Año <- 2013
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_a1=="1"), ecv2013, svymean) %>% as.data.frame() ->sexo_2013
+
+sexo_2013$Año <- 2013
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_a1=="1"), ecv2013, svymean) %>% as.data.frame() ->edad_2013
+
+edad_2013$Año <- 2013
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_a1=="1"), ecv2013, svymean) %>% as.data.frame() -> educa_2013
+
+educa_2013$Año <- 2013
+
+#2016
+svyciprop( ~I(ACTIVIDAD2_a1=="1"), ecv2016) %>% as.table() %>% as.data.frame() ->part_2016
+
+part_2016$Año <- 2016
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_a1=="1"), ecv2016, svymean) %>% as.data.frame() ->sexo_2016
+
+sexo_2016$Año <- 2016
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_a1=="1"), ecv2016, svymean)  %>% as.data.frame() -> edad_2016
+
+edad_2016$Año <- 2016
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_a1=="1"), ecv2016, svymean) %>% as.data.frame() -> educa_2016
+
+educa_2016$Año <- 2016
+
+#2019
+
+svyciprop( ~I(ACTIVIDAD2_a1=="1"), ecv2019) %>% as.table() %>% as.data.frame() ->part_2019
+
+part_2019$Año <- 2019
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_a1=="1"), ecv2019, svymean)  %>% as.data.frame() -> sexo_2019
+
+sexo_2019$Año <- 2019
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_a1=="1"), ecv2019, svymean) %>% as.data.frame() -> edad_2019
+
+edad_2019$Año <- 2019
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_a1=="1"), ecv2019, svymean) %>% as.data.frame() -> educa_2019
+
+educa_2019$Año <- 2019
+
+bind_rows(part_2010, part_2013, part_2016, part_2019) -> dfpart_a1
+
+bind_rows(edad_2010, edad_2013, edad_2016, edad_2019) -> dfpart_edad
+
+dfpart_edad %>% 
+  filter(`I(ACTIVIDAD2_a1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_edad_a1
+
+bind_rows(sexo_2010, sexo_2013, sexo_2016, sexo_2019) -> dfpart_sexo
+
+dfpart_sexo %>% 
+  filter(`I(ACTIVIDAD2_a1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:3,6)) -> dfpart_sexo_a1
+
+
+bind_rows(educa_2010, educa_2013, educa_2016, educa_2019) -> dfpart_educa
+
+dfpart_educa %>% 
+  filter(`I(ACTIVIDAD2_a1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_educa_a1
+```
+
+## BARRIO O JUNTA DE VECINOS 
+```{r}
+svyciprop( ~I(ACTIVIDAD2_b1=="1"), ecv2010) %>% as.table() %>% as.data.frame()-> part_2010 # coincide con el grafico pblicado en la ecv 2019
+part_2010$Año <- 2010
+
+#svyby( ~ ACTIVIDAD2_b1, ~ SEXO, ecv2010, svymean, na.rm = TRUE)
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_b1=="1"), ecv2010, svymean) %>% as.data.frame() -> sexo_2010 #ME TOMA EL 100% OCMO LOS QUE SI PARTICIPAN
+
+sexo_2010$Año <- 2010
+
+#ES LO MISMO QUE HACER ESTOS MIL SUBSETS
+#ecv10H <-subset(ecv2010, ACTIVIDAD2_b1 == "1")
+#as.data.frame(round( prop.table( svytable(~SEXO, ecv10H)) *100,2))%>% rename("value" = Freq) 
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_b1=="1"), ecv2010, svymean) %>% as.data.frame() -> edad_2010
+
+edad_2010$Año <- 2010
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_b1=="1"), ecv2010, svymean) %>% as.data.frame() -> educa_2010
+
+educa_2010$Año <- 2010
+
+#2013
+svyciprop( ~I(ACTIVIDAD2_b1=="1"), ecv2013) %>% as.table() %>% as.data.frame()->part_2013
+
+part_2013$Año <- 2013
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_b1=="1"), ecv2013, svymean) %>% as.data.frame() ->sexo_2013
+
+sexo_2013$Año <- 2013
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_b1=="1"), ecv2013, svymean) %>% as.data.frame() ->edad_2013
+
+edad_2013$Año <- 2013
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_b1=="1"), ecv2013, svymean) %>% as.data.frame() -> educa_2013
+
+educa_2013$Año <- 2013
+
+#2016
+svyciprop( ~I(ACTIVIDAD2_b1=="1"), ecv2016) %>% as.table() %>% as.data.frame() ->part_2016
+
+part_2016$Año <- 2016
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_b1=="1"), ecv2016, svymean) %>% as.data.frame() ->sexo_2016
+
+sexo_2016$Año <- 2016
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_b1=="1"), ecv2016, svymean)  %>% as.data.frame() -> edad_2016
+
+edad_2016$Año <- 2016
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_b1=="1"), ecv2016, svymean) %>% as.data.frame() -> educa_2016
+
+educa_2016$Año <- 2016
+
+#2019
+
+svyciprop( ~I(ACTIVIDAD2_b1=="1"), ecv2019) %>% as.table() %>% as.data.frame() ->part_2019
+
+part_2019$Año <- 2019
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_b1=="1"), ecv2019, svymean)  %>% as.data.frame() -> sexo_2019
+
+sexo_2019$Año <- 2019
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_b1=="1"), ecv2019, svymean) %>% as.data.frame() -> edad_2019
+
+edad_2019$Año <- 2019
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_b1=="1"), ecv2019, svymean) %>% as.data.frame() -> educa_2019
+
+educa_2019$Año <- 2019
+
+bind_rows(part_2010, part_2013, part_2016, part_2019) -> dfpart_b1
+
+bind_rows(edad_2010, edad_2013, edad_2016, edad_2019) -> dfpart_edad
+
+dfpart_edad %>% 
+  filter(`I(ACTIVIDAD2_b1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_edad_b1
+
+bind_rows(sexo_2010, sexo_2013, sexo_2016, sexo_2019) -> dfpart_sexo
+
+dfpart_sexo %>% 
+  filter(`I(ACTIVIDAD2_b1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:3,6)) -> dfpart_sexo_b1
+
+bind_rows(educa_2010, educa_2013, educa_2016, educa_2019) -> dfpart_educa
+
+dfpart_educa %>% 
+  filter(`I(ACTIVIDAD2_b1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_educa_b1
+```
+
+## RELIGIOSO O IGLESIA 
+
+```{r}
+svyciprop( ~I(ACTIVIDAD2_c1=="1"), ecv2010) %>% as.table() %>% as.data.frame()-> part_2010 # coincide con el grafico pblicado en la ecv 2019
+part_2010$Año <- 2010
+
+#svyby( ~ ACTIVIDAD2_c1, ~ SEXO, ecv2010, svymean, na.rm = TRUE)
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_c1=="1"), ecv2010, svymean) %>% as.data.frame() -> sexo_2010 #ME TOMA EL 100% OCMO LOS QUE SI PARTICIPAN
+
+sexo_2010$Año <- 2010
+
+#ES LO MISMO QUE HACER ESTOS MIL SUBSETS
+#ecv10H <-subset(ecv2010, ACTIVIDAD2_c1 == "1")
+#as.data.frame(round( prop.table( svytable(~SEXO, ecv10H)) *100,2))%>% rename("value" = Freq) 
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_c1=="1"), ecv2010, svymean) %>% as.data.frame() -> edad_2010
+
+edad_2010$Año <- 2010
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_c1=="1"), ecv2010, svymean) %>% as.data.frame() -> educa_2010
+
+educa_2010$Año <- 2010
+
+#2013
+svyciprop( ~I(ACTIVIDAD2_c1=="1"), ecv2013) %>% as.table() %>% as.data.frame()->part_2013
+
+part_2013$Año <- 2013
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_c1=="1"), ecv2013, svymean) %>% as.data.frame() ->sexo_2013
+
+sexo_2013$Año <- 2013
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_c1=="1"), ecv2013, svymean) %>% as.data.frame() ->edad_2013
+
+edad_2013$Año <- 2013
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_c1=="1"), ecv2013, svymean) %>% as.data.frame() -> educa_2013
+
+educa_2013$Año <- 2013
+
+#2016
+svyciprop( ~I(ACTIVIDAD2_c1=="1"), ecv2016) %>% as.table() %>% as.data.frame() ->part_2016
+
+part_2016$Año <- 2016
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_c1=="1"), ecv2016, svymean) %>% as.data.frame() ->sexo_2016
+
+sexo_2016$Año <- 2016
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_c1=="1"), ecv2016, svymean)  %>% as.data.frame() -> edad_2016
+
+edad_2016$Año <- 2016
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_c1=="1"), ecv2016, svymean) %>% as.data.frame() -> educa_2016
+
+educa_2016$Año <- 2016
+
+#2019
+
+svyciprop( ~I(ACTIVIDAD2_c1=="1"), ecv2019) %>% as.table() %>% as.data.frame() ->part_2019
+
+part_2019$Año <- 2019
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_c1=="1"), ecv2019, svymean)  %>% as.data.frame() -> sexo_2019
+
+sexo_2019$Año <- 2019
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_c1=="1"), ecv2019, svymean) %>% as.data.frame() -> edad_2019
+
+edad_2019$Año <- 2019
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_c1=="1"), ecv2019, svymean) %>% as.data.frame() -> educa_2019
+
+educa_2019$Año <- 2019
+
+bind_rows(part_2010, part_2013, part_2016, part_2019) -> dfpart_c1
+
+bind_rows(edad_2010, edad_2013, edad_2016, edad_2019) -> dfpart_edad
+
+dfpart_edad %>% 
+  filter(`I(ACTIVIDAD2_c1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_edad_c1
+
+bind_rows(sexo_2010, sexo_2013, sexo_2016, sexo_2019) -> dfpart_sexo
+
+dfpart_sexo %>% 
+  filter(`I(ACTIVIDAD2_c1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:3,6)) -> dfpart_sexo_c1
+
+bind_rows(educa_2010, educa_2013, educa_2016, educa_2019) -> dfpart_educa
+
+dfpart_educa %>% 
+  filter(`I(ACTIVIDAD2_c1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_educa_c1
+```
+
+## GRUPO SALUD
+
+```{r}
+svyciprop( ~I(ACTIVIDAD2_d1=="1"), ecv2010) %>% as.table() %>% as.data.frame()-> part_2010 # coincide con el grafico pblicado en la ecv 2019
+part_2010$Año <- 2010
+
+#svyby( ~ ACTIVIDAD2_d1, ~ SEXO, ecv2010, svymean, na.rm = TRUE)
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_d1=="1"), ecv2010, svymean) %>% as.data.frame() -> sexo_2010 #ME TOMA EL 100% OCMO LOS QUE SI PARTICIPAN
+
+sexo_2010$Año <- 2010
+
+#ES LO MISMO QUE HACER ESTOS MIL SUBSETS
+#ecv10H <-subset(ecv2010, ACTIVIDAD2_d1 == "1")
+#as.data.frame(round( prop.table( svytable(~SEXO, ecv10H)) *100,2))%>% rename("value" = Freq) 
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_d1=="1"), ecv2010, svymean) %>% as.data.frame() -> edad_2010
+
+edad_2010$Año <- 2010
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_d1=="1"), ecv2010, svymean) %>% as.data.frame() -> educa_2010
+
+educa_2010$Año <- 2010
+
+#2013
+svyciprop( ~I(ACTIVIDAD2_d1=="1"), ecv2013) %>% as.table() %>% as.data.frame()->part_2013
+
+part_2013$Año <- 2013
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_d1=="1"), ecv2013, svymean) %>% as.data.frame() ->sexo_2013
+
+sexo_2013$Año <- 2013
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_d1=="1"), ecv2013, svymean) %>% as.data.frame() ->edad_2013
+
+edad_2013$Año <- 2013
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_d1=="1"), ecv2013, svymean) %>% as.data.frame() -> educa_2013
+
+educa_2013$Año <- 2013
+
+#2016
+svyciprop( ~I(ACTIVIDAD2_d1=="1"), ecv2016) %>% as.table() %>% as.data.frame() ->part_2016
+
+part_2016$Año <- 2016
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_d1=="1"), ecv2016, svymean) %>% as.data.frame() ->sexo_2016
+
+sexo_2016$Año <- 2016
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_d1=="1"), ecv2016, svymean)  %>% as.data.frame() -> edad_2016
+
+edad_2016$Año <- 2016
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_d1=="1"), ecv2016, svymean) %>% as.data.frame() -> educa_2016
+
+educa_2016$Año <- 2016
+
+#2019
+
+svyciprop( ~I(ACTIVIDAD2_d1=="1"), ecv2019) %>% as.table() %>% as.data.frame() ->part_2019
+
+part_2019$Año <- 2019
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_d1=="1"), ecv2019, svymean)  %>% as.data.frame() -> sexo_2019
+
+sexo_2019$Año <- 2019
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_d1=="1"), ecv2019, svymean) %>% as.data.frame() -> edad_2019
+
+edad_2019$Año <- 2019
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_d1=="1"), ecv2019, svymean) %>% as.data.frame() -> educa_2019
+
+educa_2019$Año <- 2019
+
+bind_rows(part_2010, part_2013, part_2016, part_2019) -> dfpart_d1
+
+bind_rows(edad_2010, edad_2013, edad_2016, edad_2019) -> dfpart_edad
+
+dfpart_edad %>% 
+  filter(`I(ACTIVIDAD2_d1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_edad_d1
+
+bind_rows(sexo_2010, sexo_2013, sexo_2016, sexo_2019) -> dfpart_sexo
+
+dfpart_sexo %>% 
+  filter(`I(ACTIVIDAD2_d1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:3,6)) -> dfpart_sexo_d1
+
+bind_rows(educa_2010, educa_2013, educa_2016, educa_2019) -> dfpart_educa
+
+dfpart_educa %>% 
+  filter(`I(ACTIVIDAD2_d1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_educa_d1
+```
+
+## CLUB DEPORTIVO
+
+```{r}
+svyciprop( ~I(ACTIVIDAD2_e1=="1"), ecv2010) %>% as.table() %>% as.data.frame()-> part_2010 # coincide con el grafico pblicado en la ecv 2019
+part_2010$Año <- 2010
+
+#svyby( ~ ACTIVIDAD2_e1, ~ SEXO, ecv2010, svymean, na.rm = TRUE)
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_e1=="1"), ecv2010, svymean) %>% as.data.frame() -> sexo_2010 #ME TOMA EL 100% OCMO LOS QUE SI PARTICIPAN
+
+sexo_2010$Año <- 2010
+
+#ES LO MISMO QUE HACER ESTOS MIL SUBSETS
+#ecv10H <-subset(ecv2010, ACTIVIDAD2_e1 == "1")
+#as.data.frame(round( prop.table( svytable(~SEXO, ecv10H)) *100,2))%>% rename("value" = Freq) 
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_e1=="1"), ecv2010, svymean) %>% as.data.frame() -> edad_2010
+
+edad_2010$Año <- 2010
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_e1=="1"), ecv2010, svymean) %>% as.data.frame() -> educa_2010
+
+educa_2010$Año <- 2010
+
+#2013
+svyciprop( ~I(ACTIVIDAD2_e1=="1"), ecv2013) %>% as.table() %>% as.data.frame()->part_2013
+
+part_2013$Año <- 2013
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_e1=="1"), ecv2013, svymean) %>% as.data.frame() ->sexo_2013
+
+sexo_2013$Año <- 2013
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_e1=="1"), ecv2013, svymean) %>% as.data.frame() ->edad_2013
+
+edad_2013$Año <- 2013
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_e1=="1"), ecv2013, svymean) %>% as.data.frame() -> educa_2013
+
+educa_2013$Año <- 2013
+
+#2016
+svyciprop( ~I(ACTIVIDAD2_e1=="1"), ecv2016) %>% as.table() %>% as.data.frame() ->part_2016
+
+part_2016$Año <- 2016
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_e1=="1"), ecv2016, svymean) %>% as.data.frame() ->sexo_2016
+
+sexo_2016$Año <- 2016
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_e1=="1"), ecv2016, svymean)  %>% as.data.frame() -> edad_2016
+
+edad_2016$Año <- 2016
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_e1=="1"), ecv2016, svymean) %>% as.data.frame() -> educa_2016
+
+educa_2016$Año <- 2016
+
+#2019
+
+svyciprop( ~I(ACTIVIDAD2_e1=="1"), ecv2019) %>% as.table() %>% as.data.frame() ->part_2019
+
+part_2019$Año <- 2019
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_e1=="1"), ecv2019, svymean)  %>% as.data.frame() -> sexo_2019
+
+sexo_2019$Año <- 2019
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_e1=="1"), ecv2019, svymean) %>% as.data.frame() -> edad_2019
+
+edad_2019$Año <- 2019
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_e1=="1"), ecv2019, svymean) %>% as.data.frame() -> educa_2019
+
+educa_2019$Año <- 2019
+
+bind_rows(part_2010, part_2013, part_2016, part_2019) -> dfpart_e1
+bind_rows(edad_2010, edad_2013, edad_2016, edad_2019) -> dfpart_edad
+
+dfpart_edad %>% 
+  filter(`I(ACTIVIDAD2_e1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_edad_e1
+
+bind_rows(sexo_2010, sexo_2013, sexo_2016, sexo_2019) -> dfpart_sexo
+
+dfpart_sexo %>% 
+  filter(`I(ACTIVIDAD2_e1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:3,6)) -> dfpart_sexo_e1
+
+bind_rows(educa_2010, educa_2013, educa_2016, educa_2019) -> dfpart_educa
+
+dfpart_educa %>% 
+  filter(`I(ACTIVIDAD2_e1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_educa_e1
+```
+
+## VOLUNTARIADO
+
+```{r}
+svyciprop( ~I(ACTIVIDAD2_f1=="1"), ecv2010) %>% as.table() %>% as.data.frame()-> part_2010 # coincide con el grafico pblicado en la ecv 2019
+part_2010$Año <- 2010
+
+#svyby( ~ ACTIVIDAD2_f1, ~ SEXO, ecv2010, svymean, na.rm = TRUE)
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_f1=="1"), ecv2010, svymean) %>% as.data.frame() -> sexo_2010 #ME TOMA EL 100% OCMO LOS QUE SI PARTICIPAN
+
+sexo_2010$Año <- 2010
+
+#ES LO MISMO QUE HACER ESTOS MIL SUBSETS
+#ecv10H <-subset(ecv2010, ACTIVIDAD2_f1 == "1")
+#as.data.frame(round( prop.table( svytable(~SEXO, ecv10H)) *100,2))%>% rename("value" = Freq) 
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_f1=="1"), ecv2010, svymean) %>% as.data.frame() -> edad_2010
+
+edad_2010$Año <- 2010
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_f1=="1"), ecv2010, svymean) %>% as.data.frame() -> educa_2010
+
+educa_2010$Año <- 2010
+
+#2013
+svyciprop( ~I(ACTIVIDAD2_f1=="1"), ecv2013) %>% as.table() %>% as.data.frame()->part_2013
+
+part_2013$Año <- 2013
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_f1=="1"), ecv2013, svymean) %>% as.data.frame() ->sexo_2013
+
+sexo_2013$Año <- 2013
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_f1=="1"), ecv2013, svymean) %>% as.data.frame() ->edad_2013
+
+edad_2013$Año <- 2013
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_f1=="1"), ecv2013, svymean) %>% as.data.frame() -> educa_2013
+
+educa_2013$Año <- 2013
+
+#2016
+svyciprop( ~I(ACTIVIDAD2_f1=="1"), ecv2016) %>% as.table() %>% as.data.frame() ->part_2016
+
+part_2016$Año <- 2016
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_f1=="1"), ecv2016, svymean) %>% as.data.frame() ->sexo_2016
+
+sexo_2016$Año <- 2016
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_f1=="1"), ecv2016, svymean)  %>% as.data.frame() -> edad_2016
+
+edad_2016$Año <- 2016
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_f1=="1"), ecv2016, svymean) %>% as.data.frame() -> educa_2016
+
+educa_2016$Año <- 2016
+
+#2019
+
+svyciprop( ~I(ACTIVIDAD2_f1=="1"), ecv2019) %>% as.table() %>% as.data.frame() ->part_2019
+
+part_2019$Año <- 2019
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_f1=="1"), ecv2019, svymean)  %>% as.data.frame() -> sexo_2019
+
+sexo_2019$Año <- 2019
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_f1=="1"), ecv2019, svymean) %>% as.data.frame() -> edad_2019
+
+edad_2019$Año <- 2019
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_f1=="1"), ecv2019, svymean) %>% as.data.frame() -> educa_2019
+
+educa_2019$Año <- 2019
+
+bind_rows(part_2010, part_2013, part_2016, part_2019) -> dfpart_f1
+
+bind_rows(edad_2010, edad_2013, edad_2016, edad_2019) -> dfpart_edad
+
+dfpart_edad %>% 
+  filter(`I(ACTIVIDAD2_f1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_edad_f1
+
+bind_rows(sexo_2010, sexo_2013, sexo_2016, sexo_2019) -> dfpart_sexo
+
+dfpart_sexo %>% 
+  filter(`I(ACTIVIDAD2_f1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:3,6)) -> dfpart_sexo_f1
+
+bind_rows(educa_2010, educa_2013, educa_2016, educa_2019) -> dfpart_educa
+
+dfpart_educa %>% 
+  filter(`I(ACTIVIDAD2_f1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_educa_f1
+```
+
+## GRUPO FOLKLORICO
+
+```{r}
+svyciprop( ~I(ACTIVIDAD2_g1=="1"), ecv2010) %>% as.table() %>% as.data.frame()-> part_2010 # coincide con el grafico pblicado en la ecv 2019
+part_2010$Año <- 2010
+
+#svyby( ~ ACTIVIDAD2_g1, ~ SEXO, ecv2010, svymean, na.rm = TRUE)
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_g1=="1"), ecv2010, svymean) %>% as.data.frame() -> sexo_2010 #ME TOMA EL 100% OCMO LOS QUE SI PARTICIPAN
+
+sexo_2010$Año <- 2010
+
+#ES LO MISMO QUE HACER ESTOS MIL SUBSETS
+#ecv10H <-subset(ecv2010, ACTIVIDAD2_g1 == "1")
+#as.data.frame(round( prop.table( svytable(~SEXO, ecv10H)) *100,2))%>% rename("value" = Freq) 
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_g1=="1"), ecv2010, svymean) %>% as.data.frame() -> edad_2010
+
+edad_2010$Año <- 2010
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_g1=="1"), ecv2010, svymean) %>% as.data.frame() -> educa_2010
+
+educa_2010$Año <- 2010
+
+#2013
+svyciprop( ~I(ACTIVIDAD2_g1=="1"), ecv2013) %>% as.table() %>% as.data.frame()->part_2013
+
+part_2013$Año <- 2013
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_g1=="1"), ecv2013, svymean) %>% as.data.frame() ->sexo_2013
+
+sexo_2013$Año <- 2013
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_g1=="1"), ecv2013, svymean) %>% as.data.frame() ->edad_2013
+
+edad_2013$Año <- 2013
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_g1=="1"), ecv2013, svymean) %>% as.data.frame() -> educa_2013
+
+educa_2013$Año <- 2013
+
+#2016
+svyciprop( ~I(ACTIVIDAD2_g1=="1"), ecv2016) %>% as.table() %>% as.data.frame() ->part_2016
+
+part_2016$Año <- 2016
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_g1=="1"), ecv2016, svymean) %>% as.data.frame() ->sexo_2016
+
+sexo_2016$Año <- 2016
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_g1=="1"), ecv2016, svymean)  %>% as.data.frame() -> edad_2016
+
+edad_2016$Año <- 2016
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_g1=="1"), ecv2016, svymean) %>% as.data.frame() -> educa_2016
+
+educa_2016$Año <- 2016
+
+#2019
+
+svyciprop( ~I(ACTIVIDAD2_g1=="1"), ecv2019) %>% as.table() %>% as.data.frame() ->part_2019
+
+part_2019$Año <- 2019
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_g1=="1"), ecv2019, svymean)  %>% as.data.frame() -> sexo_2019
+
+sexo_2019$Año <- 2019
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_g1=="1"), ecv2019, svymean) %>% as.data.frame() -> edad_2019
+
+edad_2019$Año <- 2019
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_g1=="1"), ecv2019, svymean) %>% as.data.frame() -> educa_2019
+
+educa_2019$Año <- 2019
+
+bind_rows(part_2010, part_2013, part_2016, part_2019) -> dfpart_g1
+bind_rows(edad_2010, edad_2013, edad_2016, edad_2019) -> dfpart_edad
+
+dfpart_edad %>% 
+  filter(`I(ACTIVIDAD2_g1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_edad_g1
+
+bind_rows(sexo_2010, sexo_2013, sexo_2016, sexo_2019) -> dfpart_sexo
+
+dfpart_sexo %>% 
+  filter(`I(ACTIVIDAD2_g1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:3,6)) -> dfpart_sexo_g1
+
+bind_rows(educa_2010, educa_2013, educa_2016, educa_2019) -> dfpart_educa
+
+dfpart_educa %>% 
+  filter(`I(ACTIVIDAD2_g1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_educa_g1
+```
+## OTRA ORG
+```{r}
+svyciprop( ~I(ACTIVIDAD2_h1=="1"), ecv2010) %>% as.table() %>% as.data.frame()-> part_2010 # coincide con el grafico pblicado en la ecv 2019
+part_2010$Año <- 2010
+
+#svyby( ~ ACTIVIDAD2_h1, ~ SEXO, ecv2010, svymean, na.rm = TRUE)
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_h1=="1"), ecv2010, svymean) %>% as.data.frame() -> sexo_2010 #ME TOMA EL 100% OCMO LOS QUE SI PARTICIPAN
+
+sexo_2010$Año <- 2010
+
+#ES LO MISMO QUE HACER ESTOS MIL SUBSETS
+#ecv10H <-subset(ecv2010, ACTIVIDAD2_h1 == "1")
+#as.data.frame(round( prop.table( svytable(~SEXO, ecv10H)) *100,2))%>% rename("value" = Freq) 
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_h1=="1"), ecv2010, svymean) %>% as.data.frame() -> edad_2010
+
+edad_2010$Año <- 2010
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_h1=="1"), ecv2010, svymean) %>% as.data.frame() -> educa_2010
+
+educa_2010$Año <- 2010
+
+#2013
+svyciprop( ~I(ACTIVIDAD2_h1=="1"), ecv2013) %>% as.table() %>% as.data.frame()->part_2013
+
+part_2013$Año <- 2013
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_h1=="1"), ecv2013, svymean) %>% as.data.frame() ->sexo_2013
+
+sexo_2013$Año <- 2013
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_h1=="1"), ecv2013, svymean) %>% as.data.frame() ->edad_2013
+
+edad_2013$Año <- 2013
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_h1=="1"), ecv2013, svymean) %>% as.data.frame() -> educa_2013
+
+educa_2013$Año <- 2013
+
+#2016
+svyciprop( ~I(ACTIVIDAD2_h1=="1"), ecv2016) %>% as.table() %>% as.data.frame() ->part_2016
+
+part_2016$Año <- 2016
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_h1=="1"), ecv2016, svymean) %>% as.data.frame() ->sexo_2016
+
+sexo_2016$Año <- 2016
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_h1=="1"), ecv2016, svymean)  %>% as.data.frame() -> edad_2016
+
+edad_2016$Año <- 2016
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_h1=="1"), ecv2016, svymean) %>% as.data.frame() -> educa_2016
+
+educa_2016$Año <- 2016
+
+#2019
+
+svyciprop( ~I(ACTIVIDAD2_h1=="1"), ecv2019) %>% as.table() %>% as.data.frame() ->part_2019
+
+part_2019$Año <- 2019
+
+svyby (  ~ SEXO, ~ I(ACTIVIDAD2_h1=="1"), ecv2019, svymean)  %>% as.data.frame() -> sexo_2019
+
+sexo_2019$Año <- 2019
+
+svyby (  ~ group_age, ~ I(ACTIVIDAD2_h1=="1"), ecv2019, svymean) %>% as.data.frame() -> edad_2019
+
+edad_2019$Año <- 2019
+
+svyby (  ~ EDUCA3, ~ I(ACTIVIDAD2_h1=="1"), ecv2019, svymean) %>% as.data.frame() -> educa_2019
+
+educa_2019$Año <- 2019
+
+bind_rows(part_2010, part_2013, part_2016, part_2019) -> dfpart_h1
+bind_rows(edad_2010, edad_2013, edad_2016, edad_2019) -> dfpart_edad
+
+dfpart_edad %>% 
+  filter(`I(ACTIVIDAD2_h1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_edad_h1
+
+bind_rows(sexo_2010, sexo_2013, sexo_2016, sexo_2019) -> dfpart_sexo
+
+dfpart_sexo %>% 
+  filter(`I(ACTIVIDAD2_h1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:3,6)) -> dfpart_sexo_h1
+
+bind_rows(educa_2010, educa_2013, educa_2016, educa_2019) -> dfpart_educa
+
+dfpart_educa %>% 
+  filter(`I(ACTIVIDAD2_h1 == "1")` == "TRUE") %>% 
+  droplevels() %>% 
+  select(c(1:4,8)) -> dfpart_educa_h1
+```
+
+## TODAS
+```{r}
+bind_rows(dfpart_a1, dfpart_b1, dfpart_c1, dfpart_d1, dfpart_e1, dfpart_f1, dfpart_g1, dfpart_h1) -> participacion_total
+
+participacion_total <- participacion_total %>%
+  mutate(Participación= case_when(
+    Var1 == "I(ACTIVIDAD2_a1 == \"1\")" ~ "Organización o club de PM",
+    Var1 == "I(ACTIVIDAD2_b1 == \"1\")" ~ "Barrio o junta de vecinos",
+    Var1 == "I(ACTIVIDAD2_c1 == \"1\")" ~ "Grupo religioso",
+    Var1 == "I(ACTIVIDAD2_d1 == \"1\")" ~ "Grupo salud",
+    Var1 == "I(ACTIVIDAD2_e1 == \"1\")" ~ "Club deportivo",
+    Var1 == "I(ACTIVIDAD2_f1 == \"1\")" ~ "Voluntariado",
+    Var1 == "I(ACTIVIDAD2_g1 == \"1\")" ~ "Grupo folklorico",
+    Var1 == "I(ACTIVIDAD2_h1 == \"1\")" ~ "Otra"
+    ))
+
+participacion_total$Freq <- participacion_total$Freq * 100
+
+bind_rows(dfpart_sexo_a1, dfpart_sexo_b1, dfpart_sexo_c1, dfpart_sexo_d1, dfpart_sexo_e1, dfpart_sexo_f1, dfpart_sexo_g1, dfpart_sexo_h1) -> participacion_sexo
+
+participacion_sexo <- participacion_sexo %>%
+  select(c(2:4)) %>%
+  mutate(Participación = rep(c("Organización o club de PM", "Barrio o junta de vecinos", "Grupo religioso", "Grupo salud", "Club deportivo", "Voluntariado", "Grupo folklorico", "Otra"), each=4))
+
+participacion_sexo<-pivot_longer(participacion_sexo,cols=c("SEXO1","SEXO2"),names_to = "Sexo", values_to = "Freq")
+
+participacion_sexo$Sexo <- factor(participacion_sexo$Sexo, labels = c("Hombres", "Mujeres"))
+
+participacion_sexo$Freq <- participacion_sexo$Freq * 100
+
+bind_rows(dfpart_edad_a1, dfpart_edad_b1, dfpart_edad_c1, dfpart_edad_d1, dfpart_edad_e1, dfpart_edad_f1, dfpart_edad_g1, dfpart_edad_h1) -> participacion_edad
+
+participacion_edad <- participacion_edad %>%
+  select(c(2:5)) %>%
+  mutate(Participación = rep(c("Organización o club de PM", "Barrio o junta de vecinos", "Grupo religioso", "Grupo salud", "Club deportivo", "Voluntariado", "Grupo folklorico", "Otra"), each=4))
+
+participacion_edad<-pivot_longer(participacion_edad,cols=c(1:3),names_to = "Rango Etario", values_to = "Freq")
+
+
+participacion_edad$`Rango Etario` <- factor(participacion_edad$`Rango Etario`, levels = c("group_age60-69" , "group_age70-79", "group_age80+"), labels = c("60-69", "70-79", "80+"))
+
+participacion_edad$Freq <- participacion_edad$Freq * 100
+
+bind_rows(dfpart_educa_a1, dfpart_educa_b1, dfpart_educa_c1, dfpart_educa_d1, dfpart_educa_e1, dfpart_educa_f1, dfpart_educa_g1, dfpart_educa_h1) -> participacion_educa
+
+participacion_educa <- participacion_educa %>%
+  select(c(2:5)) %>%
+  mutate(Participación = rep(c("Organización o club de PM", "Barrio o junta de vecinos", "Grupo religioso", "Grupo salud", "Club deportivo", "Voluntariado", "Grupo folklorico", "Otra"), each=4))
+
+participacion_educa<-pivot_longer(participacion_educa,cols=c(1:3),names_to = "Nivel educacional", values_to = "Freq")
+
+
+participacion_educa$`Nivel educacional` <- factor(participacion_educa$`Nivel educacional`, levels = c("EDUCA31" , "EDUCA32", "EDUCA33"), labels = c("Básica", "Media", "Superior"))
+
+participacion_educa$Freq <- participacion_educa$Freq * 100
+
+```
+### Calculos
+```{r}
+participacion_total %>%
+  group_by(Año) %>% 
+  summarise(Prop = mean(Freq))
+
+orgsocial1 <- c("Voluntariado", "Grupo folklorico", "Otra")
+
+participacion_total %>%
+  filter( `Participación` %in% orgsocial1) %>%
+  group_by(Año) %>% 
+  summarise(Prop = mean(Freq))
+
+orgsocial2 <- c("Organización o club de PM", "Barrio o junta de vecinos", "Grupo religioso", "Grupo salud", "Club deportivo")
+
+participacion_total %>%
+  filter( `Participación` %in% orgsocial2) %>%
+  group_by(Año) %>% 
+  summarise(Prop = mean(Freq))
+
+
+participacion_total %>%
+  group_by(Año) %>% 
+  summarise(Prop = sum(Freq))
+
+
+part_total_educ_año %>%
+  group_by(Educacion) %>% 
+  summarise(Prop = mean(participa1))
+
+part_total_sexo_año %>%
+  group_by(Sexo) %>% 
+  summarise(Prop = mean(participa1))
+
+part_total_edad_año %>%
+  group_by(`Rangos Etarios`) %>% 
+  summarise(Prop = mean(participa1))
+```
+
+## GRAFICOS
+```{r echo=FALSE}
+participacion_total %>%
+  ggplot(aes(x=as.factor(Año), y=Freq, group=as.factor(Participación), col=as.factor(Participación))) +
+  geom_point() +
+  geom_line() +
+  #facet_grid(. ~ `Calculation6 Dimension (copy)`) +
+  labs(y="Porcentaje (%)", x="", col = "Participación", title="Participación general") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) -> g_participacion
+
+
+participacion_sexo %>%
+  ggplot(aes(x=as.factor(Año), y=Freq, group=as.factor(Participación), col=as.factor(Participación))) +
+  geom_point() +
+  geom_line() +
+  facet_grid(. ~ Sexo ) +
+  labs(y="Porcentaje (%)", x="", col = "Participación", title="Participación por género") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8))+
+  theme(legend.position="none") -> g_part_sexo
+
+participacion_edad %>%
+  ggplot(aes(x=as.factor(Año), y=Freq, group=as.factor(Participación), col=as.factor(Participación))) +
+  geom_point() +
+  geom_line() +
+  facet_grid(. ~ `Rango Etario` ) +
+  labs(y="Porcentaje (%)", x="", col = "Participación", title="Participación por edad") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) +
+  theme(legend.position="none") -> g_part_edad
+
+grid.arrange(g_participacion, g_part_sexo, g_part_edad, nrow=3)
+
+
+participacion_educa %>%
+  ggplot(aes(x=as.factor(Año), y=Freq, group=as.factor(Participación), col=as.factor(Participación))) +
+  geom_point() +
+  geom_line() +
+  facet_grid(. ~ `Nivel educacional` ) +
+  labs(y="Porcentaje (%)", x="", col = "Educación", title="Participación por nivel educacional") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8)) +
+  theme(legend.position="none") -> g_part_educa
+
+grid.arrange(g_participacion, g_part_sexo, g_part_edad, g_part_educa, nrow=4)
+```
+
+### Capacitaciones
+
+```{r}
+svyciprop( ~I(ECON18=="1"), ecv2013)
+svyciprop( ~I(ECON18=="1"), ecv2019)
+
+svyciprop( ~I(ECON19=="1"), ecv2013)
+svyciprop( ~I(ECON19=="1"), ecv2019)
+```
+# SOC EN ACCION
+
+```{r}
+
+tibble::tribble(~Año,~Freq,
+                "1998", 3435,
+                "2001", 6094,
+                "2003", 7668,
+                "2005", 9089,
+                "2008", 11616,
+                "2018", 13310,
+                ) -> catastro_opm
+
+
+catastro_opm %>%
+  ggplot(aes(x=as.factor(Año), y=Freq, group=1, col= "blue")) +
+  geom_point() +
+  geom_line() +
+  #facet_grid(. ~ Elección ) +
+  labs(y="Frecuencia", x="", title = "Catasatro de Organizaciones\nde Personas Mayores") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8))+
+  theme(legend.position="none") -> g_catastro_opm
+```
+
+# SERVEL 
+
+## Votaciones
+
+```{r}
+load("votaciones.RData")
+
+votos<-pivot_longer(votos,cols=c("mas60","menos60"),names_to = "Proporción", values_to = "Value")
+
+plebiscito <- votos %>%
+  filter(vot == "plebiscito" )
+
+plebiscito  %>%
+ggplot(aes(as.factor(año), Value, fill=as.factor(Proporción))) +
+  geom_bar(position="dodge", stat="identity", width = 0.5) +
+  labs(y="Porcentaje (%)", x="", title="Votantes plebiscito", fill ="Grupo etario")  +
+  scale_y_continuous(limits = c(0,75)) +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98")
+  ) +
+  geom_text( 
+    aes(label = round(Value,0), y= round(Value,0) + 0.05), color="white", position = position_dodge(0.5), vjust=2, size=3) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8)) +
+  theme(legend.position="none")-> g_votos_plebiscito
+
+municipales <- votos %>%
+  filter(vot == "municipales" )
+
+municipales  %>%
+ggplot(aes(as.factor(año), Value, fill=as.factor(Proporción))) +
+  geom_bar(position="dodge", stat="identity") +
+  labs(y="Porcentaje (%)", x="", title="Votantes municipales", fill ="Grupo etario")  +
+  scale_y_continuous(limits = c(0,75)) +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98")
+  ) +
+  geom_text( 
+    aes(label = round(Value,0), y= round(Value,0) + 0.05), color="white", position = position_dodge(0.9), vjust=2, size=3) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8)) +
+  theme(legend.position="none")-> g_votos_municipales
+
+presidenciales <- votos %>%
+  filter(vot == "presidenciales" )
+
+presidenciales <- presidenciales %>%
+  mutate(Año = case_when(
+    año == "2013a" ~ "2013",
+    año == "2013b" ~ "2013",
+    año == "2017a" ~ "2017",
+    año == "2017b" ~ "2017"
+    ))
+
+presidenciales1 <- presidenciales %>%
+  group_by(Año, Proporción) %>% 
+  summarise(Prop = mean(Value))
+
+presidenciales1$Proporción[presidenciales1$Proporción =="mas60"] <- "60 +"
+presidenciales1$Proporción[presidenciales1$Proporción =="menos60"] <- "- 60"
+
+presidenciales1  %>%
+ggplot(aes(as.factor(Año), Prop, fill=as.factor(Proporción))) +
+  geom_bar(position="dodge", stat="identity") +
+  labs(y="Porcentaje (%)", x="", title="Votantes presidenciales", fill ="Grupo etario")  +
+  scale_y_continuous(limits = c(0,75)) +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98")
+  ) +
+  geom_text( 
+    aes(label = round(Prop,0), y= round(Prop,0) + 0.05), color="white", position = position_dodge(0.9), vjust=2, size=3) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8)) +
+  theme(legend.position="none")-> g_votos_presidenciales
+
+grid.arrange(g_votos_presidenciales, g_votos_municipales, g_votos_plebiscito, nrow=1)
+```
+### Partidos políticos
+
+```{r}
+partidos_municipales2012 <- read.csv("votPART_2012M.csv", sep=";", header=TRUE, fill = TRUE) %>% filter(PM == "PM") %>% droplevels()
+
+partidos_municipales2012 <- sapply(partidos_municipales2012, gsub, pattern = ",", replacement= ".") %>% as.data.frame()
+
+partidos_municipales2012$prop <- as.numeric(as.character(partidos_municipales2012$prop))
+
+partidos_presidenciales2017 <- read.csv("votPART_2017P.csv", sep=";", header=TRUE, fill = TRUE)%>% filter(PM == "PM") %>% droplevels()
+
+partidos_presidenciales2017 <- sapply(partidos_presidenciales2017, gsub, pattern = ",", replacement= ".") %>% as.data.frame()
+
+partidos_presidenciales2017$prop <- as.numeric(as.character(partidos_presidenciales2017$prop))
+
+
+partidos_pleb2020 <- read.csv("votPART_2020.csv", sep=";", header=TRUE, fill = TRUE)%>% filter(PM == "PM") %>% droplevels()
+
+partidos_pleb2020 <- sapply(partidos_pleb2020, gsub, pattern = ",", replacement= ".") %>% as.data.frame()
+
+partidos_pleb2020$prop <- as.numeric(as.character(partidos_pleb2020$prop))
+```
+```{r}
+load("votan.RData")
+load("no votan.RData")
+load("PM-partido.RData")
+
+PM_partido <- PMpartido %>% filter(PM == 1) %>% arrange(-vota)
+
+noPM_partido <- PMpartido %>% filter(PM == 0) %>% arrange(-vota)
+
+PM_partido$Total <- PM_partido$vota +PM_partido$no_vota
+
+noPM_partido$Total <- noPM_partido$vota + noPM_partido$no_vota
+```
+```{r}
+partidos_rank <- read.csv("partidos ranking.csv", sep=",", header=TRUE, fill = TRUE) 
+
+partidos_rank$Ranking60mas <- as.numeric(partidos_rank$Ranking60mas)
+
+partidos_rank$Ranking60menos <- as.numeric(partidos_rank$Ranking60menos)
+
+partidos_rank$Partido.Político <- factor(partidos_rank$Partido.Político, levels= partidos_rank$Partido.Político)
+ 
+partidos_rank <- partidos_rank %>% arrange(-Ranking60menos)
+
+partidos_rank$Partido.Político <- factor(partidos_rank$Partido.Político, levels= partidos_rank$Partido.Político)
+
+# Libraries
+library(hrbrthemes)
+library(GGally)
+library(viridis)
+
+my_labs <- rep(partidos_rank$Partido.Político, each=2)
+
+# Plot
+g_partrank<- ggparcoord(partidos_rank,
+    columns = 5:4, groupColumn = 1, 
+    scale="globalminmax",
+    showPoints = TRUE, 
+    title = "Ranking Partidos Políticos",
+    alphaLines = 0.3
+    ) + 
+  scale_color_viridis(discrete=TRUE) +
+  theme_ipsum()+
+  theme(
+    plot.title = element_text(size=10)
+  ) +
+  theme_void() #+ geom_text( aes(label = my_labs), hjust = 0.5) 
+
+
+library(igraph)
+
+partidos_rank <- read.csv("partidos ranking 1.csv", sep=",", header=TRUE, fill = TRUE) 
+
+ppmas <- partidos_rank$PartidoPolítico60mas %>% as.character()
+
+ppmenos <- partidos_rank$PartidoPolitico60menos  %>% as.character()
+
+ppmaslabel <- partidos_rank$Ranking60mas
+
+ppmenoslabel <- partidos_rank$Ranking60menos
+  
+rankchange <- function(ppmenos, ppmas){
+    grp = c(rep(0,length(ppmas)),rep(1,length(ppmenos)))
+    m = match(ppmas, ppmenos)
+    m = m + length(ppmas)
+    pairs = cbind(1:length(ppmas), m)
+    pairs = pairs[!is.na(pairs[,1]),]
+    pairs = pairs[!is.na(pairs[,2]),]
+    g = graph.bipartite(grp, as.vector(t(pairs)), directed=FALSE)
+    V(g)$color =  c("light green","light blue")[grp+1]
+    V(g)$label = c(ppmaslabel) #c("")
+    V(g)$x = grp
+    V(g)$y = c(length(ppmas):1, length(ppmenos):1)
+    g
+}
+
+g = rankchange(ppmas, ppmenos)
+plot(g)
+```
+### Sexo
+```{r}
+votSEX_2012M <- read.csv("votSEX_2012M.csv", sep=";", header=TRUE, fill = TRUE) 
+
+
+votSEX_2013p <- read.csv("votSEX_2013p.csv", sep=";", header=TRUE, fill = TRUE) 
+
+votSEX_2016M <- read.csv("votSEX_2016M.csv", sep=";", header=TRUE, fill = TRUE) 
+
+
+votSEX_2017P <- read.csv("votSEX_2017P.csv", sep=";", header=TRUE, fill = TRUE) 
+
+
+votSEX_2020 <- read.csv("votSEX_2020.csv", sep=";", header=TRUE, fill = TRUE) 
+
+load("sexoVOT.RData")
+
+sexoVot <- sexoVot %>%
+  mutate(Eleccion= case_when(
+    año == "2012" ~ "Municipales",
+    año == "2016" ~ "Municipales",
+    año == "2013" ~ "Presidenciales",
+    año == "2017" ~ "Presidenciales",
+    año == "2020" ~ "Plebiscito"
+    ))
+
+sexoVot <- sexoVot %>%
+  mutate(Sexo= case_when(
+    Var1 == "Femenino" ~ "Mujer",
+    Var1 == "femenino" ~ "Mujer",
+    Var1 == "Masculino" ~ "Hombre",
+    Var1 == "masculino" ~ "Hombre"
+    ))
+
+sexoVot %>%
+  ggplot(aes(x=as.factor(Elección), y=Freq*100, group=as.factor(Sexo), col=as.factor(Sexo))) +
+  geom_point() +
+  geom_line() +
+  #facet_grid(. ~ Elección ) +
+  labs(y="Porcentaje (%)", x="", col = "Participación", title="Participación por género") +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98"))  +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size=8))+
+  theme(legend.position="none") 
+```
+
+```{r}
+tibble::tribble(~Elección,~Sexo, ~Freq,
+                "Presidenciales 2013-2017", "Mujer", 55,
+                "Presidenciales 2013-2017", "Hombre", 45,
+                "Municipales 2012-2016", "Mujer", 54,
+                "Municipales 2012-2016", "Hombre", 46,
+                "Plebiscito 2020", "Mujer", 52,
+                "Plebiscito 2020", "Hombre", 48,
+                ) -> sexoVot1
+
+sexoVot <- sexoVot1 %>% filter(Elección == "Presidenciales 2013-2017")
+
+sexoVot$ymax <- cumsum(sexoVot$Freq)
+
+sexoVot$ymin = c(0, head(sexoVot$ymax, n=-1))
+
+sexoVot$labelPosition <- (sexoVot$ymax + sexoVot$ymin) / 2
+
+sexoVot$label <- sexoVot$Freq %>% as.character()
+
+sexoVot$Sexo[sexoVot$Sexo=="Hombre"] <- "Hombre 60+"
+sexoVot$Sexo[sexoVot$Sexo=="Mujer"] <- "Mujer 60+"
+
+ggplot(sexoVot, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Sexo)) +
+     geom_rect() +
+  geom_label(x=3.5, aes(y=labelPosition, label=label), size=3, color="white", show_guide  = FALSE) +
+  coord_polar(theta="y") +
+  xlim(c(2, 4)) +
+  theme_void() +
+  labs(fill='', title="Votaciones presidenciales\n(2013-2017)") -> g_presidenciales_sexo
+
+
+sexoVot <- sexoVot1 %>% filter(Elección == "Municipales 2012-2016")
+
+sexoVot$ymax <- cumsum(sexoVot$Freq)
+
+sexoVot$ymin = c(0, head(sexoVot$ymax, n=-1))
+
+sexoVot$labelPosition <- (sexoVot$ymax + sexoVot$ymin) / 2
+
+sexoVot$label <- sexoVot$Freq %>% as.character()
+
+sexoVot$Sexo[sexoVot$Sexo=="Hombre"] <- "Hombre 60+"
+sexoVot$Sexo[sexoVot$Sexo=="Mujer"] <- "Mujer 60+"
+
+ggplot(sexoVot, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Sexo)) +
+     geom_rect() +
+  geom_label(x=3.5, aes(y=labelPosition, label=label), size=3, color="white", show_guide  = FALSE) +
+  coord_polar(theta="y") +
+  xlim(c(2, 4)) +
+  theme_void() +
+  labs(fill='', title="Votaciones municipales\n(2012-2016)") -> g_municipales_sexo
+
+sexoVot <- sexoVot1 %>% filter(Elección == "Plebiscito 2020")
+
+sexoVot$ymax <- cumsum(sexoVot$Freq)
+
+sexoVot$ymin = c(0, head(sexoVot$ymax, n=-1))
+
+sexoVot$labelPosition <- (sexoVot$ymax + sexoVot$ymin) / 2
+
+sexoVot$label <- sexoVot$Freq %>% as.character()
+
+sexoVot$Sexo[sexoVot$Sexo=="Hombre"] <- "Hombre 60+"
+sexoVot$Sexo[sexoVot$Sexo=="Mujer"] <- "Mujer 60+"
+
+ggplot(sexoVot, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Sexo)) +
+     geom_rect() +
+  geom_label(x=3.5, aes(y=labelPosition, label=label), size=3, color="white", show_guide  = FALSE) +
+  coord_polar(theta="y") +
+  xlim(c(2, 4)) +
+  theme_void() +
+  labs(fill='', title="Votaciones Plebiscito\n2020") -> g_plebiscito_sexo
+
+
+tibble::tribble(~Elección,~Año, ~`Diferencia por Género`,
+                "Presidenciales", "2013", 9.2,
+                "Presidenciales" ," 2017", 9.3,
+                "Municipales", "2012", 8.0,
+                "Municipales", "2016", 8.0,
+                "Plebiscito", "2020", 4.6,
+                ) -> variacion_Sexo_vot
+
+
+variacion_Sexo_vot %>%
+ggplot(aes(as.factor(Elección), `Diferencia por Género`, fill=as.factor(Año))) +
+  geom_bar(position="dodge", stat="identity") +
+  labs(y="Porcentaje (%)", x="", title="Variación por sexo de votantes 60+", fill ="Año")  +
+  scale_y_continuous(limits = c(0,10)) +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98")
+  ) +
+  geom_text( 
+    aes(label = `Diferencia por Género`, y= `Diferencia por Género` + 0.05), color="white", position = position_dodge(0.9), vjust=2, size=3) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8))
+
+
+tibble::tribble(~Elección, ~`Diferencia por Género`,
+                "Presidenciales\n2013-2017", 9.3,
+                "Municipales\n2012-2016", 8.0,
+                "Plebiscito\n2020", 4.6,
+                ) -> variacion_Sexo_vot
+
+
+variacion_Sexo_vot %>%
+ggplot(aes(as.factor(Elección), `Diferencia por Género`, fill=as.factor(Elección))) +
+  geom_bar( stat="identity") +
+  labs(y="Porcentaje (%)", x="", title="Promedio variación por sexo de votantes 60+")  +
+  scale_y_continuous(limits = c(0,10)) +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98")
+  ) +
+  geom_text( 
+    aes(label = `Diferencia por Género`, y= `Diferencia por Género` + 0.05), color="white", position = position_dodge(0.9), vjust=2, size=3) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8), legend.position = "none")
+```
+Por padron electoral 
+```{r}
+load("VOTsexo_100x100torealnofake_final_final.RData")
+
+VOTsexo_ULTIMATE <- VOTsexo_ULTIMATE %>%
+  mutate(Elecciones= case_when(
+    año == "2012" ~ "Municipales\n2012-2016",
+    año == "2016" ~ "Municipales\n2012-2016",
+    año == "2013" ~ "Presidenciales\n2013-2017",
+    año == "2017" ~ "Presidenciales\n2013-2017",
+    año == "2020" ~ "Plebiscito\n2020"
+    ))
+
+VOTsexo_ULTIMATE %>% filter(Var1 == "sufragó") %>% group_by(Elecciones, sexo) %>% summarise(Prop = mean(Freq))
+
+```
+
+## Candidaturas y elecciones
+```{r}
+#load("candi_elec_sin2016.RData")
+load("candi_elec.RData")
+
+
+candi_elec %>%
+ggplot(aes(as.factor(año), prop_60mas, fill=as.factor(estado))) +
+  geom_bar(position="dodge", stat="identity") +
+  labs(y="Porcentaje (%)", x="", title="Candidatos y electos 60+", fill ="Estado")  +
+  scale_y_continuous(limits = c(0,105)) +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98")
+  ) +
+  geom_text( 
+    aes(label = round(prop_60mas,0), y= round(prop_60mas,0) + 0.05), color="white", position = position_dodge(0.9), vjust=2, size=3) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8))+ #primer caso covid 
+  facet_wrap(. ~ cargo )
+```
+### Alcaldes
+```{r}
+alcaldes <- candi_elec %>%
+  filter(cargo == "alcalde" )
+
+alcaldes %>%
+ggplot(aes(as.factor(año), prop_60mas, fill=estado)) +
+  geom_bar(position="dodge", stat="identity") +
+  labs(y="Porcentaje (%)", x="", title="Alcaldes 60+", fill ="Estado")  +
+  scale_y_continuous(limits = c(0,30)) +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98")
+  ) +
+  geom_text( 
+    aes(label = round(prop_60mas,0), y= round(prop_60mas,0) + 0.05), color="white", position = position_dodge(0.9), vjust=2, size=3) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8))  -> g_alcaldes #+theme(legend.position="none")
+
+
+kw <- alcaldes %>% filter(estado == "candidato") 
+aers <- aov(n_pm ~ año, data = kw)
+summary(aers)
+
+kruskal.test(n_pm ~ as.factor(año), data = kw)
+
+alcaldes$prop_60menos <- (alcaldes$n_nopm*100)/alcaldes$n_total
+```
+### Convencionales 
+```{r}
+convencional <- candi_elec %>%
+  filter(cargo == "convencional" )
+
+convencional%>%
+ggplot(aes(as.factor(año), prop_60mas, fill=as.factor(estado))) +
+  geom_bar(position="dodge", stat="identity", width = 0.5) + #,position = position_dodge(0.7))+
+  labs(y="Porcentaje (%)", x="", title="Convencionales 60+", fill ="Estado")  +
+  scale_y_continuous(limits = c(0,30)) +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98")
+  ) +
+  geom_text( 
+    aes(label = round(prop_60mas,0), y= round(prop_60mas,0) + 0.05), color="white", position = position_dodge(0.5), vjust=2, size=3) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8))  -> g_convencionales#+theme(legend.position="none") 
+```
+### Presidentes 
+```{r}
+presidente <- candi_elec %>%
+  filter(cargo == "presidente" )
+
+presidente <- read.csv("presidentes candidatos y electos.csv", sep=",", header=TRUE, fill = TRUE)
+
+participacion_total_sexo$Sexo <- factor(participacion_total_sexo$Sexo, labels = c("Hombres", "Mujeres"))
+
+presidente$estado <- factor(presidente$estado, levels = c("Total Candidatos", "Candidato 60+", "Electo"))
+
+presidente%>%
+ggplot(aes(as.factor(año), n_pm, fill=as.factor(estado))) +
+  geom_bar(position="dodge", stat="identity") +
+  labs(y="Frecuencia", x="", title="Presidentes 60+", fill ="Estado")  +
+  scale_y_continuous(limits = c(0,10)) +
+theme_bw()%+replace%
+  theme(
+        panel.grid.major = element_line(color = "gray98"),
+        panel.grid.minor = element_line(color = "gray98")
+  )  +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, size=8)) +
+  geom_text( 
+    aes(label = n_pm, y= n_pm + 0.05), color="white", position = position_dodge(0.9), vjust=2, size=3)  -> g_presidentes
+```
+
+Alcaldes electos 
+```{r eval=FALSE, include=FALSE}
+resultados_elecciones_alcaldes_ce_2004_2016 <- read_excel("Downloads/resultados_elecciones_alcaldes_ce_2004_2016.xlsx")
+View(resultados_elecciones_alcaldes_ce_2004_2016)
+alcaldes2016 <- resultados_elecciones_alcaldes_ce_2004_2016 %>%
+  filter(`Año de Elección` == 2016 &
+          `Electo(a)` ==  "SI")
+alcaldes2016 <- alcaldes2016%>%dplyr::select(c(16,4,9,12,22))%>% unique()
+
+#write.csv(alcaldes2016, file="Alcaldes2016.csv")
+
+```
+
+### Partidos politicos
+
+Alcaldes, concejales, convencionales, gobernadores
+
+```{r}
+candidatos_partido <- read.csv("candidatosPARTIDO_PM.csv", sep=";", header=TRUE, fill = TRUE) %>% filter(PM == "60 m\xe1s") %>% droplevels()
+
+candidatos_partido <- sapply(candidatos_partido, gsub, pattern = ",", replacement= ".") %>% as.data.frame()
+
+candidatos_partido$X. <- as.numeric(as.character(candidatos_partido$X.))
+```
+
+```{r}
+load("partido_alcalde_CANDI_ELECC.RData")
+
+p_alcaldes <- p_alcaldes %>% arrange(-candi_elec)
+```
+
+### Sexo
+
+```{r}
+sexo_eleccPM <- read.csv("candidatosELECCsex_PM.csv", sep=",", header=TRUE, fill = TRUE) 
+
+sexo_eleccnoPM <- read.csv("candidatosELECCsex_noPM.csv", sep=",", header=TRUE, fill = TRUE) 
+
+candidatosSEX_PM <- read.csv("candidatosSEX_PM.csv", sep=",", header=TRUE, fill = TRUE) 
+
+candidatosPARTIDO_NOPM <- read.csv("candidatosPARTIDO_NOPM.csv", sep=";", header=TRUE, fill = TRUE) 
+
+candidatosPARTIDO_presisexo <-load("candidatos presi sexo.RData")
+
+
+sexo_final <-load("sexoCANDI_ELECC.RData")
+
+sexo_final_long<-pivot_longer(sexo_final,cols=c("fem_candi","masc_candi"),names_to = "Sexo", values_to = "value")
+
+sexo_final_long <- sapply(sexo_final_long, gsub, pattern = ",", replacement= ".") %>% as.data.frame()
+```
+
+```{r}
+sexo_final_conv <- sexo_final_long %>% filter(cargo == "convencional") %>% droplevels() %>%
+  mutate(ymax = cumsum(as.numeric(as.character(value))))
+
+sexo_final_conv$ymin = c(0, head(sexo_final_conv$ymax, n=-1))
+
+sexo_final_conv$labelPosition <- (sexo_final_conv$ymax + sexo_final_conv$ymin) / 2
+
+sexo_final_conv$value <- as.numeric(as.character(sexo_final_conv$value))
+sexo_final_conv$value <- sexo_final_conv$value*100
+
+sexo_final_conv$label <-  round(sexo_final_conv$value, digits=2) %>% as.character()
+
+sexo_final_conv$Sexo <- as.character(sexo_final_conv$Sexo)
+
+sexo_final_conv$Sexo[sexo_final_conv$Sexo=="fem_candi"] <- "Mujer 60+"
+
+sexo_final_conv$Sexo[sexo_final_conv$Sexo=="masc_candi"] <- "Hombre 60+"
+
+ggplot(sexo_final_conv, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Sexo)) +
+     geom_rect() +
+  geom_label(x=3.5, aes(y=labelPosition, label=label), size=3, color="white", show_guide  = FALSE) +
+  coord_polar(theta="y") +
+  xlim(c(2, 4)) +
+  theme_void() +
+  labs(fill='', title="Convencionales")  -> g_sexo_convencionales
+```
+
+```{r}
+sexo_final_alc <- sexo_final_long %>% filter(cargo == "alcalde") %>% droplevels() %>%
+  mutate(ymax = cumsum(as.numeric(as.character(value))))
+
+sexo_final_alc$ymin = c(0, head(sexo_final_alc$ymax, n=-1))
+
+sexo_final_alc$labelPosition <- (sexo_final_alc$ymax + sexo_final_alc$ymin) / 2
+
+sexo_final_alc$value <- as.numeric(as.character(sexo_final_alc$value))
+sexo_final_alc$value <- sexo_final_alc$value*100
+
+sexo_final_alc$label <-  round(sexo_final_alc$value, digits=2) %>% as.character()
+
+sexo_final_alc$Sexo <- as.character(sexo_final_alc$Sexo)
+
+sexo_final_alc$Sexo[sexo_final_alc$Sexo=="fem_candi"] <- "Mujer 60+"
+
+sexo_final_alc$Sexo[sexo_final_alc$Sexo=="masc_candi"] <- "Hombre 60+"
+
+ggplot(sexo_final_alc, aes(ymax=ymax, ymin=ymin, xmax=4, xmin=3, fill=Sexo)) +
+     geom_rect() +
+  geom_label(x=3.5, aes(y=labelPosition, label=label), size=3, color="white", show_guide  = FALSE) +
+  coord_polar(theta="y") +
+  xlim(c(2, 4)) +
+  theme_void() +
+  labs(fill='', title="Alcaldes")   -> g_sexo_alcaldes
+```
+
+# ENUT
+
+```{r}
+load("actividades comunitarias.RData")
+load("participacionSEXenut.RData") #participacion_sex
+
+#actividades comunitarias en el día tipo : sindicatos, jjvv, voluntariados y clubes
+
+participacion_sex1 <- participacion_sex*100
+```
